@@ -178,12 +178,13 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .sem-cell::before{content:"- "}
 .sem-cell.no-dash::before{content:""}
 .sem-cell .sem-val{font-family:var(--mono);font-size:11px;padding:5px;border-radius:3px;display:inline-block}
-.sem-cell .sem-val.filled{color:#1e40af;background:#bfdbfe}
-.sem-cell .sem-val.empty{color:#1e40af;background:#bfdbfe}
+.sem-cell .sem-val.filled{color:#3b82f6;background:#dbeafe}
+.sem-cell .sem-val.empty{color:#3b82f6;background:#dbeafe}
 .sem-cell .sem-path{font-family:var(--mono);font-size:11px;padding:5px;border-radius:3px;display:inline-block}
-.sem-cell .sem-path.filled{color:#166534;background:#bbf7d0}
-.sem-cell .sem-path.empty{color:#166534;background:#bbf7d0}
-.sem-hl{color:#1e40af;font-family:var(--mono);font-size:11px;background:#bfdbfe;padding:5px;border-radius:3px;display:inline-block}
+.sem-cell .sem-path.filled{color:#10b981;background:#d1fae5}
+.sem-cell .sem-path.empty{color:#10b981;background:#d1fae5}
+.sem-hl{color:#3b82f6;font-family:var(--mono);font-size:11px;background:#dbeafe;padding:5px;border-radius:3px;display:inline-block}
+.emoji-op{color:var(--text-muted)}
 
 /* ── Input / Badge grid overlay (no layout shift on hover) ── */
 .fld-wrap{
@@ -999,7 +1000,7 @@ function renderAll() {
     } else if (SEM[a]) {
       const isOp = ACTION_EMOJI.includes(a);
       if (isOp) semSpan.classList.add('no-dash');
-      semSpan.innerHTML = (isOp ? '▶ ' : '') + SEM[a].desc(step.p1, step.p2);
+      semSpan.innerHTML = (isOp ? '<span class="emoji-op">▶ </span>' : '') + SEM[a].desc(step.p1, step.p2);
     } else {
       semSpan.innerHTML = '<span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
     }
