@@ -121,8 +121,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   padding:8px 12px 4px;text-align:left;border-bottom:1px solid var(--border);
 }
 .th-idx{width:54px}
-.th-syn{padding:15px 0}
-.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0}
+.th-syn{padding:15px 0 20px}
+.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0 20px}
 
 .th-sep{color:var(--border);margin:0 4px;user-select:none}
 .tc-name-inline{font-size:13px;font-weight:600;font-family:var(--font);color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;outline:none;width:200px;max-width:40%;box-sizing:border-box;display:inline-block;vertical-align:middle}
@@ -290,7 +290,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
     <span id="rowCount">0 行</span>
   </div>
   <div class="header-btns">
-    <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容">🔍 搜尋</button>
+    <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容">🔍 搜尋複製内容</button>
     <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn">🔒 唯讀</button>
     <span class="file-input-wrap">
       <input type="file" id="fileInput" accept=".csv">
