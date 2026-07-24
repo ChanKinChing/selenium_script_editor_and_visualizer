@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Selenium Test Case Generator &amp; Editor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 <style>
 :root {
   --bg: #f0f2f5;
@@ -103,7 +104,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .steps-col.btns .key-btn.custom-btn{background:#d1fae5;border-color:#6ee7b7}
 .steps-col.btns .key-btn.custom-btn:hover{background:#6ee7b7;color:#fff}
 .kb-act{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:-0.3px;display:flex;justify-content:space-between;align-items:center;width:100%}
-.kb-icon{font-size:14px}
+.kb-icon{font-size:14px;display:inline-flex;align-items:center}
+.kb-icon .material-symbols-outlined{font-size:16px}
 .kb-desc{font-family:var(--font);font-size:9px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Middle column (table) ── */
@@ -425,14 +427,14 @@ const BTN_GROUPS = [
 ];
 
 const BTN_ICONS = {
-  'open':'🌐','pause':'⏳','click':'🖱️','type':'⌨️','dropdown':'📋','press':'🔘',
-  'present':'👁️','visible':'👁️','not_present':'🚫','not_visible':'👻',
-  'assert_text':'✅','assert_attribute_value':'✅','assert_class':'✅',
-  'get_text':'📝','get_attribute_value':'📝','compare_eq':'⚖️',
-  'check_presence_to_continue':'🔀','end_check_presence_to_continue':'🔚',
-  'print':'📢','check_file_downloaded':'📎',
-  'ENTER':'⏎','TAB':'⇥','DELETE':'⌫','CONTROL+A':'🔲',
-  'custom':'✏️','paste':'📋',
+  'open':'open_in_new','pause':'hourglass_empty','click':'touch_app','type':'keyboard','dropdown':'arrow_drop_down_circle','press':'keyboard_return',
+  'present':'visibility','visible':'visibility','not_present':'visibility_off','not_visible':'dangerous',
+  'assert_text':'fact_check','assert_attribute_value':'verified','assert_class':'verified',
+  'get_text':'description','get_attribute_value':'code','compare_eq':'compare_arrows',
+  'check_presence_to_continue':'alt_route','end_check_presence_to_continue':'stop',
+  'print':'print','check_file_downloaded':'download',
+  'ENTER':'keyboard_return','TAB':'keyboard_tab','DELETE':'backspace','CONTROL+A':'select_all',
+  'custom':'edit','paste':'content_paste',
 };
 
 // ============ State ============
@@ -599,7 +601,9 @@ function renderButtons() {
     for (const item of g.items) {
       const btn = document.createElement('button');
       btn.className = 'key-btn' + (item.cls ? ' ' + item.cls : '');
-      btn.innerHTML = `<span class="kb-act"><span>${item.action}</span><span class="kb-icon">${BTN_ICONS[item.action]||''}</span></span><span class="kb-desc">${item.desc}</span>`;
+      const iconName = BTN_ICONS[item.action];
+      const iconHtml = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : '';
+      btn.innerHTML = `<span class="kb-act"><span>${item.action}</span><span class="kb-icon">${iconHtml}</span></span><span class="kb-desc">${item.desc}</span>`;
       if (item.extra) {
         btn.onclick = () => addStep(item.extra.val, item.extra.a);
       } else {
