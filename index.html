@@ -173,10 +173,9 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .sem-cell{
   font-size:12px;color:var(--text);line-height:1.3;
   white-space:normal;word-break:break-all;overflow-wrap:break-word;
-  display:block;padding-left:1.2em;text-indent:-1.2em;
+  display:block;padding-left:2em;text-indent:-2em;
 }
-.sem-cell::before{content:"- "}
-.sem-cell.no-dash::before{content:""}
+.sem-prefix{display:inline-block;width:1.6em;text-align:right}
 .sem-cell .sem-val{font-family:var(--mono);font-size:11px;padding:2px;border-radius:3px;display:inline-block;vertical-align:middle;line-height:1.2}
 .sem-cell .sem-val.filled{color:#3b82f6;background:#dbeafe}
 .sem-cell .sem-val.empty{color:#3b82f6;background:#dbeafe}
@@ -184,7 +183,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .sem-cell .sem-path.filled{color:#10b981;background:#d1fae5}
 .sem-cell .sem-path.empty{color:#10b981;background:#d1fae5}
 .sem-hl{color:#3b82f6;font-family:var(--mono);font-size:11px;background:#dbeafe;padding:2px;border-radius:3px;display:inline-block;vertical-align:middle;line-height:1.2}
-.emoji-op{color:var(--text-muted)}
 
 /* ── Input / Badge grid overlay (no layout shift on hover) ── */
 .fld-wrap{
@@ -973,21 +971,20 @@ function renderAll() {
     const semSpan = document.createElement('span');
     semSpan.className = 'sem-cell';
     if (step._error) {
-      semSpan.innerHTML = `<span style="color:var(--danger);font-weight:600">⚠ 無法識別的操作: ${esc(a)}</span>`;
+      semSpan.innerHTML = `<span class="sem-prefix"></span><span style="color:var(--danger);font-weight:600">⚠ 無法識別的操作: ${esc(a)}</span>`;
     } else if (unmatchedCheck.has(i)) {
-      semSpan.innerHTML = '<span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
+      semSpan.innerHTML = '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
       semSpan.title = '此 check_presence 沒有對應的 end_check_presence_to_continue';
     } else if (unmatchedEnd.has(i)) {
-      semSpan.innerHTML = '<span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 check_presence_to_continue</span>';
+      semSpan.innerHTML = '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 check_presence_to_continue</span>';
       semSpan.title = '此 end_check 沒有對應的 check_presence_to_continue';
     } else if (a === '') {
-      semSpan.textContent = '自定義指令';
+      semSpan.innerHTML = '<span class="sem-prefix"></span>自定義指令';
     } else if (SEM[a]) {
       const isOp = ACTION_EMOJI.includes(a);
-      if (isOp) semSpan.classList.add('no-dash');
-      semSpan.innerHTML = (isOp ? '<span class="emoji-op">▶ </span>' : '') + SEM[a].desc(step.p1, step.p2);
+      semSpan.innerHTML = '<span class="sem-prefix">' + (isOp ? '▶' : '-') + '</span> ' + SEM[a].desc(step.p1, step.p2);
     } else {
-      semSpan.innerHTML = '<span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
+      semSpan.innerHTML = '<span class="sem-prefix"></span><span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
     }
     tdSem.appendChild(semSpan);
     tr.appendChild(tdSem);
