@@ -455,6 +455,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderButtons();
   renderTcList();
   document.getElementById('fileInput').addEventListener('change', loadCSV);
+  document.getElementById('findBtn').addEventListener('mouseenter', async function() {
+    try {
+      const text = await navigator.clipboard.readText();
+      this.title = text.length > 30 ? text.slice(0, 30) + '...' : text;
+    } catch {}
+  });
   document.getElementById('tcName').addEventListener('input', function() {
     if (currentIdx >= 0 && currentIdx < testCases.length) {
       testCases[currentIdx].name = this.value.trim();
