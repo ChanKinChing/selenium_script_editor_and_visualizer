@@ -294,6 +294,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 <header>
   <h1><span>Selenium</span> Test Case Editor</h1>
   <div class="header-btns">
+    <button class="btn" onclick="undo()" id="undoBtn" disabled title="Ctrl+Z"><span class="material-symbols-outlined">undo</span></button>
+    <button class="btn" onclick="redo()" id="redoBtn" disabled title="Ctrl+Y"><span class="material-symbols-outlined">redo</span></button>
     <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容"><span class="material-symbols-outlined">search</span> 搜尋剪貼板内容</button>
     <button class="btn" onclick="copyTC()"><span class="material-symbols-outlined">content_paste</span> 複製當前 Test Case</button>
     <button class="btn" onclick="clearAll()"><span class="material-symbols-outlined">delete</span> 清空目前Test Case</button>
@@ -453,10 +455,65 @@ function saveFileName() {
 }
 function exitRenameMode() {
   if (!isRenaming) return;
+  saveFileName();
   isRenaming = false;
   document.getElementById('fileInfoHeader').style.display = 'block';
   document.getElementById('fileRenameInput').style.display = 'none';
   renderTcList();
+}
+
+// ============ Undo / Redo ============
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+function takeSnapshot() {
+  return {
+    testCases: testCases.map(tc => ({
+      name: tc.name,
+      steps: tc.steps.map(s => ({...s})),
+      breakpoints: new Set(tc.breakpoints)
+    })),
+    currentIdx
+  };
+}
+function pushSnapshot() {
+  undoStack.push(takeSnapshot());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+function updateUndoButtons() {
+  const u = document.getElementById('undoBtn');
+  const r = document.getElementById('redoBtn');
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+function restoreSnapshot(snap) {
+  testCases = snap.testCases.map(tc => ({
+    name: tc.name,
+    steps: tc.steps.map(s => ({...s})),
+    breakpoints: new Set(tc.breakpoints)
+  }));
+  currentIdx = Math.min(snap.currentIdx, testCases.length - 1);
+  if (currentIdx >= 0) {
+    steps = testCases[currentIdx].steps;
+    breakpoints = testCases[currentIdx].breakpoints;
+  } else { steps = []; breakpoints = new Set(); }
+  selectedRowIdx = -1;
+  isDirty = true;
+  renderAll();
+  renderTcList();
+  updateUndoButtons();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(takeSnapshot());
+  restoreSnapshot(undoStack.pop());
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(takeSnapshot());
+  restoreSnapshot(redoStack.pop());
 }
 
 // ============ Init ============
@@ -471,7 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
       this.title = text.length > 30 ? text.slice(0, 30) + '...' : text;
     } catch {}
   });
-  document.getElementById('fileEditBtn').addEventListener('click', function() {
+  document.getElementById('fileEditBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
     isRenaming = !isRenaming;
     const label = document.getElementById('fileInfoHeader');
     const input = document.getElementById('fileRenameInput');
@@ -483,6 +541,11 @@ document.addEventListener('DOMContentLoaded', () => {
       label.style.display = 'block'; input.style.display = 'none';
     }
     renderTcList();
+  });
+  document.addEventListener('click', function(e) {
+    if (!isRenaming) return;
+    if (e.target.closest('.file-info-row') || e.target.closest('.tc-list')) return;
+    exitRenameMode();
   });
   document.getElementById('fileRenameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
@@ -497,11 +560,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.activeElement?.blur();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      const tag = document.activeElement?.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); undo(); }
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      const tag = document.activeElement?.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); redo(); }
+    }
     if (e.key === 'Delete') {
       const active = document.activeElement;
       if (active && !active.closest('.steps-col.btns') && !active.closest('header')) {
         const row = active.closest('.step-tr');
-        if (row) { steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); }
+        if (row) { pushSnapshot(); steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); }
       }
     }
   });
@@ -582,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
   body.addEventListener('drop', e => {
     const tr = e.target.closest('.step-tr'); if (!tr || dragSrcIdx < 0) return;
     e.preventDefault();
+    pushSnapshot();
     let t = parseInt(tr.dataset.idx);
     if (dragSrcIdx === t) { dragSrcIdx = -1; return; }
     const [m] = steps.splice(dragSrcIdx, 1);
@@ -697,6 +769,7 @@ function parseCSVLine(line) {
 function loadCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
+  pushSnapshot();
   currentFileName = file.name.replace(/\.csv$/i, '');
   const reader = new FileReader();
   reader.onload = function(ev) {
@@ -748,6 +821,7 @@ function loadCSV(e) {
 
 // ============ Actions ============
 function addStep(param2, actionOverride) {
+  pushSnapshot();
   if (currentIdx < 0) {
     const name = 'TC ' + (testCases.length + 1);
     testCases.push({ name, steps: [], breakpoints: new Set() });
@@ -1014,7 +1088,7 @@ function renderAll() {
 
     const del = document.createElement('button');
     del.className = 'del-btn'; del.textContent = '✕';
-    del.onclick = () => { steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); };
+    del.onclick = () => { pushSnapshot(); steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); };
     grid.appendChild(del);
 
     tdSyn.appendChild(grid);
@@ -1093,6 +1167,9 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   inp.rows = 1;
   inp.readOnly = a !== '' && !needsList.includes(a);
   if (inp.readOnly) wrap.classList.add('fld-ro');
+  inp.addEventListener('focus', function() {
+    if (!this.dataset.snap) { pushSnapshot(); this.dataset.snap = '1'; }
+  });
   inp.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
   });
@@ -1194,6 +1271,7 @@ function saveCSV() {
 // ============ Clear ============
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
+  pushSnapshot();
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
   currentFileName = 'Test_case';
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
@@ -1236,6 +1314,7 @@ function renderTcList() {
         }
       });
       inp.addEventListener('blur', function() {
+        pushSnapshot();
         testCases[i].name = this.value.trim() || `TC ${i+1}`;
         renderTcList();
       });
