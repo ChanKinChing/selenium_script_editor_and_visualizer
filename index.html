@@ -237,6 +237,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .readonly #readOnlyBtn{pointer-events:auto;opacity:1}
 .readonly #tcName{pointer-events:none;opacity:.7}
 .readonly .step-tr{cursor:default}
+.step-tr.find-match td{background:#fef9c3!important}
+.step-tr.find-match:hover td{background:#fde68a!important}
 .readonly .step-tr:active{cursor:default}
 
 /* ── Empty ── */
@@ -281,6 +283,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
     <span id="rowCount">0 行</span>
   </div>
   <div class="header-btns">
+    <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容">🔍 搜尋</button>
     <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn">🔒 唯讀</button>
     <span class="file-input-wrap">
       <input type="file" id="fileInput" accept=".csv">
@@ -439,6 +442,8 @@ let selectedRowIdx = -1;
 let dragSrcIdx = -1;
 let isDirty = false;
 let isReadOnly = false;
+let findMatchText = '';
+let findMatchIdx = -1;
 
 // ============ Init ============
 document.addEventListener('DOMContentLoaded', () => {
@@ -1187,6 +1192,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ============ Find Clipboard ============
+function findClipboard() {
+  navigator.clipboard.readText().then(text => {
+    if (!text.trim()) { showToast('剪貼簿為空'); return; }
+    const rows = document.querySelectorAll('.step-tr');
+    document.querySelectorAll('.step-tr.find-match').forEach(el => el.classList.remove('find-match'));
+    if (text !== findMatchText) { findMatchIdx = -1; findMatchText = text; }
+    let found = false;
+    for (let i = findMatchIdx + 1; i < rows.length; i++) {
+      const syn = rows[i].querySelector('.td-syn');
+      const sem = rows[i].querySelector('.td-sem');
+      const content = syn?.textContent + ' ' + sem?.textContent;
+      if (content.includes(text)) {
+        rows[i].classList.add('find-match');
+        rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        findMatchIdx = i;
+        found = true;
+        showToast(`找到第 ${i+1} 行`);
+        break;
+      }
+    }
+    if (!found) {
+      if (findMatchIdx >= 0) {
+        findMatchIdx = -1;
+        findClipboard();
+        return;
+      }
+      showToast('未找到匹配');
+    }
+  }).catch(() => showToast('無法讀取剪貼簿'));
+}
 
 // ============ Toast ============
 function showToast(m) {
