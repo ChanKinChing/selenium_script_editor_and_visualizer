@@ -88,7 +88,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   padding:0 3px 4px;margin:15px 0;
 }
 .tc-list{display:flex;flex-direction:column;gap:1px;flex:1;min-height:0;overflow-y:auto}
-.file-info-label{font-size:11px;font-family:var(--mono);color:var(--text-muted);padding:0 3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-info-label{font-size:13px;font-family:var(--mono);color:var(--text);font-weight:600;padding:0 3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
 .tc-list-item:hover{background:var(--key-hover)}
 .tc-list-item.active{background:var(--primary);color:#fff}
@@ -129,7 +129,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 }
 .th-idx{width:54px}
 .step-table th.th-syn{padding:15px 0 19px}
-.step-table th.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0 19px}
+.step-table th.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0 19px 54px}
 
 .th-sep{color:var(--border);margin:0 4px;user-select:none}
 .tc-name-inline{font-size:13px;font-weight:600;font-family:var(--font);color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;outline:none;width:200px;max-width:40%;box-sizing:border-box;display:inline-block;vertical-align:middle}
@@ -232,7 +232,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 .step-tr.selected td{background:#e0f2fe}
 .step-tr.selected:hover td{background:#bae6fd}
-.app-footer{height:30px;background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;padding:0 14px;color:var(--text-muted);font-size:11px}
+.app-footer{height:30px;background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-muted);font-size:11px}
 .app-footer span{margin:0 4px}
 .step-tr{cursor:grab}
 .step-tr:active{cursor:grabbing}
@@ -290,9 +290,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 <header>
   <h1><span>Selenium</span> Test Case Editor</h1>
   <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
-  <div class="status">
-    <span id="rowCount">0 行</span>
-  </div>
   <div class="header-btns">
     <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容"><span class="material-symbols-outlined">search</span> 搜尋剪貼板内容</button>
     <button class="btn" onclick="copyTC()"><span class="material-symbols-outlined">content_paste</span> 複製當前 Test Case</button>
@@ -333,7 +330,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
       </table>
       <div class="empty-state" id="emptyState"><p>尚未加入步驟</p><p class="hint">點擊左側按鈕開始</p></div>
     </div>
-    <footer class="app-footer">© 2026 ChanKinChing <span>|</span> v2.1.2</footer>
+    <footer class="app-footer"><span id="rowCount">0 行</span><span>© 2026 ChanKinChing <span>|</span> v2.1.2</span></footer>
   </div>
 </div>
 
