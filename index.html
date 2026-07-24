@@ -991,7 +991,7 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   inp.rows = 1;
   inp.readOnly = a !== '' && !needsList.includes(a);
   if (inp.readOnly) wrap.classList.add('fld-ro');
-  if (a !== '' && needsList.includes(a) && !step[cls]) inp.classList.add('danger');
+  if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !step[cls]) inp.classList.add('danger');
   syncBadge(wrap);
   const autoGrow = () => {
     const hidden = inp.offsetParent === null;
@@ -1013,13 +1013,13 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
     } else {
       wrap.classList.remove('has-value');
       badge.textContent = placeholder;
-      if (a !== '' && needsList.includes(a)) inp.classList.add('danger');
+      if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2')) inp.classList.add('danger');
       syncBadge(wrap);
     }
   };
   inp.oninput = doUpdate;
   inp.onblur = () => {
-    if (a !== '' && needsList.includes(a) && !step[cls]) inp.classList.add('danger');
+    if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !step[cls]) inp.classList.add('danger');
     else if (step[cls]) validateField(inp, a, cls);
     syncBadge(wrap);
   };
