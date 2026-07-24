@@ -634,12 +634,24 @@ function loadCSV(e) {
     for (const line of lines) {
       const cells = parseCSVLine(line);
       const name = cells[0] || '';
-      const tcSteps = [];
+      const fixed = [cells[0]];
       for (let i = 1; i + 2 < cells.length; i += 3) {
+        const p1 = cells[i] || '';
+        const p2 = cells[i+1] || '';
         const a = cells[i+2] || '';
+        if (p2 && a && ALL_ACTIONS.includes(p2) && ALL_ACTIONS.includes(a)) {
+          fixed.push(p1, '', p2);
+          fixed.push('', '', a);
+        } else {
+          fixed.push(p1, p2, a);
+        }
+      }
+      const tcSteps = [];
+      for (let i = 1; i + 2 < fixed.length; i += 3) {
+        const a = fixed[i+2] || '';
         const unknown = a !== '' && !ALL_ACTIONS.includes(a);
         if (unknown) totalErr++;
-        tcSteps.push({ p1: cells[i] || '', p2: cells[i+1] || '', a, _error: unknown || undefined });
+        tcSteps.push({ p1: fixed[i] || '', p2: fixed[i+1] || '', a, _error: unknown || undefined });
       }
       testCases.push({ name, steps: tcSteps, breakpoints: new Set() });
     }
