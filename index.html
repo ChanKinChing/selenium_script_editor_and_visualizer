@@ -875,9 +875,15 @@ function renderAll() {
     const num = document.createElement('span');
     num.className = 'num' + (breakpoints.has(i) ? ' bp' : '');
     num.textContent = i + 1;
+    num.title = '左鍵: 標記斷點 | 右鍵: 複製該行';
     num.onclick = () => {
       if (breakpoints.has(i)) breakpoints.delete(i); else breakpoints.add(i);
       num.classList.toggle('bp');
+    };
+    num.oncontextmenu = (e) => {
+      e.preventDefault();
+      const csvLine = [step.p1||'', step.p2||'', step.a||''].map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
+      navigator.clipboard.writeText(csvLine).then(() => showToast('已複製步驟 ' + (i+1))).catch(() => showToast('複製失敗'));
     };
     tdIdx.appendChild(num);
     tr.appendChild(tdIdx);
