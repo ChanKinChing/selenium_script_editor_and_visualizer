@@ -106,6 +106,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .kb-act{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:-0.3px;display:flex;justify-content:space-between;align-items:center;width:100%}
 .kb-icon{font-size:14px;display:inline-flex;align-items:center}
 .kb-icon .material-symbols-outlined{font-size:16px}
+.btn .material-symbols-outlined{font-size:16px}
+.file-input-wrap .material-symbols-outlined{font-size:16px}
 .kb-desc{font-family:var(--font);font-size:9px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Middle column (table) ── */
@@ -292,15 +294,15 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
     <span id="rowCount">0 行</span>
   </div>
   <div class="header-btns">
-    <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容">🔍 搜尋複製内容</button>
-    <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn">🔒 唯讀</button>
+    <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容"><span class="material-symbols-outlined">search</span> 搜尋複製内容</button>
+    <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn"><span class="material-symbols-outlined">lock</span> 唯讀</button>
     <span class="file-input-wrap">
       <input type="file" id="fileInput" accept=".csv">
-      📂 載入 CSV
+      <span class="material-symbols-outlined">folder_open</span> 載入 CSV
     </span>
-    <button class="btn" onclick="copyTC()">📋 複製當前 Test Case</button>
-    <button class="btn" onclick="clearAll()">🗑 清空</button>
-    <button class="btn btn-primary" onclick="saveCSV()">💾 導出 CSV</button>
+    <button class="btn" onclick="copyTC()"><span class="material-symbols-outlined">content_paste</span> 複製當前 Test Case</button>
+    <button class="btn" onclick="clearAll()"><span class="material-symbols-outlined">delete</span> 清空</button>
+    <button class="btn btn-primary" onclick="saveCSV()"><span class="material-symbols-outlined">save</span> 導出 CSV</button>
   </div>
 </header>
 
