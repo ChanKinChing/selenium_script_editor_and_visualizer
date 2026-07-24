@@ -171,6 +171,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   display:block;padding-left:1.2em;text-indent:-1.2em;
 }
 .sem-cell::before{content:"- "}
+.sem-cell.no-dash::before{content:""}
 .sem-cell .sem-val{font-family:var(--mono);font-size:11px;padding:0 5px;border-radius:3px}
 .sem-cell .sem-val.filled{color:#1e40af;background:#bfdbfe}
 .sem-cell .sem-val.empty{color:#1e40af;background:#bfdbfe}
@@ -797,6 +798,8 @@ const ALL_ACTIONS = ['open','pause','click','type','dropdown','press','present',
   'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','compare_eq',
   'check_presence_to_continue','end_check_presence_to_continue','print','check_file_downloaded'];
 
+const ACTION_EMOJI = ['open','click','type','dropdown','press','print','get_text','get_attribute_value','compare_eq','check_file_downloaded'];
+
 const VALIDATORS = {
   'pause': { p2: v => /^\d*$/.test(v) || '' },
   'open': { p2: v => v === '' || /^https?:\/\//.test(v) || v.startsWith('/') || '' },
@@ -958,9 +961,11 @@ function renderAll() {
     } else if (a === '') {
       semSpan.textContent = '自定義指令';
     } else if (SEM[a]) {
-      semSpan.innerHTML = '▶ ' + SEM[a].desc(step.p1, step.p2);
+      const isOp = ACTION_EMOJI.includes(a);
+      if (isOp) semSpan.classList.add('no-dash');
+      semSpan.innerHTML = (isOp ? '▶ ' : '') + SEM[a].desc(step.p1, step.p2);
     } else {
-      semSpan.innerHTML = '▶ <span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
+      semSpan.innerHTML = '<span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
     }
     tdSem.appendChild(semSpan);
     tr.appendChild(tdSem);
