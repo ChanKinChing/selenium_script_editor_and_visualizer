@@ -457,6 +457,19 @@ let isReadOnly = false;
 let findMatchText = '';
 let findMatchIdx = -1;
 let isRenaming = false;
+function saveFileName() {
+  const input = document.getElementById('fileRenameInput');
+  const val = input.value.trim() || 'Test_case.csv';
+  currentFileName = val.replace(/\.csv$/i, '');
+  document.getElementById('fileInfoHeader').textContent = '▾ ' + val;
+}
+function exitRenameMode() {
+  if (!isRenaming) return;
+  isRenaming = false;
+  document.getElementById('fileInfoHeader').style.display = 'block';
+  document.getElementById('fileRenameInput').style.display = 'none';
+  renderTcList();
+}
 
 // ============ Init ============
 document.addEventListener('DOMContentLoaded', () => {
@@ -484,13 +497,15 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTcList();
   });
   document.getElementById('fileRenameInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') this.blur();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveFileName();
+      exitRenameMode();
+    }
   });
   document.getElementById('fileRenameInput').addEventListener('blur', function() {
     if (!isRenaming) return;
-    const val = this.value.trim() || 'Test_case.csv';
-    currentFileName = val.replace(/\.csv$/i, '');
-    document.getElementById('fileInfoHeader').textContent = '▾ ' + val;
+    saveFileName();
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.activeElement?.blur();
@@ -1109,6 +1124,9 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   inp.rows = 1;
   inp.readOnly = a !== '' && !needsList.includes(a);
   if (inp.readOnly) wrap.classList.add('fld-ro');
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+  });
   if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !(a === 'assert_text' && cls === 'p2') && !step[cls]) inp.classList.add('danger');
   syncBadge(wrap);
   const autoGrow = () => {
@@ -1243,7 +1261,11 @@ function renderTcList() {
       inp.className = 'tc-list-input';
       inp.value = tc.name || '';
       inp.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') this.blur();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          testCases[i].name = this.value.trim() || `TC ${i+1}`;
+          exitRenameMode();
+        }
       });
       inp.addEventListener('blur', function() {
         testCases[i].name = this.value.trim() || `TC ${i+1}`;
