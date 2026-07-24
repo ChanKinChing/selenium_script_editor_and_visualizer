@@ -75,12 +75,12 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .btn-col-top{flex:1;min-height:0;display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px}
 .btn-list-wrap{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding-bottom:15px}
 .btn-col-title{
-  font-size:13px;font-weight:700;color:var(--text-muted);
+  font-size:13px;font-weight:700;color:var(--text);
   text-transform:uppercase;letter-spacing:.5px;
   padding:0 3px 4px;
 }
 .explorer-title{
-  font-size:13px;font-weight:700;color:var(--text-muted);
+  font-size:13px;font-weight:700;color:var(--text);
   text-transform:uppercase;letter-spacing:.5px;
   padding:0 3px 4px;margin:15px 0;
 }
@@ -116,7 +116,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 /* Table header */
 .step-table thead{background:var(--surface)}
 .step-table thead th{
-  font-size:13px;font-weight:700;color:var(--text-muted);
+  font-size:13px;font-weight:700;color:var(--text);
   text-transform:uppercase;letter-spacing:.5px;
   padding:8px 12px 4px;text-align:left;border-bottom:1px solid var(--border);
 }
@@ -280,6 +280,10 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 <header>
   <h1><span>Selenium</span> Test Case Generator &amp; Editor</h1>
+  <span class="th-sep">|</span>
+  <span id="fileInfoHeader">未載入</span>
+  <span class="th-sep">&gt;</span>
+  <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
   <div class="status">
     <span id="rowCount">0 行</span>
   </div>
@@ -314,10 +318,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
             <th class="th-idx"></th>
             <th class="th-syn">
               ⬡ Selenium Syntax
-              <span class="th-sep">|</span>
-              <span id="fileInfoHeader">未載入</span>
-              <span class="th-sep">&gt;</span>
-              <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
             </th>
             <th class="th-sem">◎ 語義說明</th>
           </tr>
