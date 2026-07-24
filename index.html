@@ -56,7 +56,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .btn:hover{background:var(--key-hover)}
 .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
 .btn-primary:hover{background:var(--primary-hover)}
-.btn-import-csv{border-color:#93c5fd;background:#fff}
+.btn-import-csv{border-color:var(--primary);background:#fff}
 .btn-import-csv:hover{background:var(--key-hover)}
 .file-input-wrap{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-sm);display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--surface);cursor:pointer;font-size:12px;white-space:nowrap;font-family:var(--font);color:var(--text)}
 .file-input-wrap:hover{background:var(--key-hover)}
@@ -88,7 +88,11 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   padding:0 3px 4px;margin:15px 0;
 }
 .tc-list{display:flex;flex-direction:column;gap:1px;flex:1;min-height:0;overflow-y:auto}
-.file-info-label{font-size:13px;font-family:var(--mono);color:var(--text);font-weight:600;padding:0 3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-info-row{display:flex;align-items:center;gap:3px;padding:0 3px 6px}
+.file-info-label{font-size:13px;font-family:var(--mono);color:var(--text);font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-rename-input{font:13px/1.2 var(--mono);padding:1px 4px;border:1px solid var(--primary);border-radius:3px;outline:none;flex:1;min-width:0;display:none}
+.file-edit-btn{background:none;border:none;cursor:pointer;padding:1px 2px;border-radius:3px;color:var(--text-muted);display:flex;align-items:center}
+.file-edit-btn:hover{background:var(--key-hover);color:var(--text)}
 .tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
 .tc-list-item:hover{background:var(--key-hover)}
 .tc-list-item.active{background:var(--primary);color:#fff}
@@ -308,7 +312,11 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
     <div class="btn-list-wrap">
       <div class="btn-col-top">
         <div class="explorer-title">⬡ Test Case</div>
-        <div id="fileInfoHeader" class="file-info-label"></div>
+        <div class="file-info-row">
+          <span id="fileInfoHeader" class="file-info-label"></span>
+          <input id="fileRenameInput" class="file-rename-input" type="text" style="display:none">
+          <button class="file-edit-btn" id="fileEditBtn" title="重新命名"><span class="material-symbols-outlined" style="font-size:14px">edit</span></button>
+        </div>
         <div id="tcList" class="tc-list"></div>
       </div>
       <div class="btn-col-title">⬡ 指令</div>
@@ -454,12 +462,36 @@ let findMatchIdx = -1;
 document.addEventListener('DOMContentLoaded', () => {
   renderButtons();
   renderTcList();
+  document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
+  document.getElementById('tcName').value = 'TC001';
   document.getElementById('fileInput').addEventListener('change', loadCSV);
   document.getElementById('findBtn').addEventListener('mouseenter', async function() {
     try {
       const text = await navigator.clipboard.readText();
       this.title = text.length > 30 ? text.slice(0, 30) + '...' : text;
     } catch {}
+  });
+  document.getElementById('fileEditBtn').addEventListener('click', function() {
+    const label = document.getElementById('fileInfoHeader');
+    const input = document.getElementById('fileRenameInput');
+    input.value = label.textContent.replace('▾ ', '');
+    label.style.display = 'none';
+    input.style.display = 'block';
+    input.focus();
+    input.select();
+    document.getElementById('tcName').focus();
+    document.getElementById('tcName').select();
+  });
+  document.getElementById('fileRenameInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') this.blur();
+  });
+  document.getElementById('fileRenameInput').addEventListener('blur', function() {
+    const label = document.getElementById('fileInfoHeader');
+    const val = this.value.trim() || 'Test_case.csv';
+    currentFileName = val.replace(/\.csv$/i, '');
+    label.textContent = '▾ ' + val;
+    label.style.display = 'block';
+    this.style.display = 'none';
   });
   document.getElementById('tcName').addEventListener('input', function() {
     if (currentIdx >= 0 && currentIdx < testCases.length) {
@@ -1140,9 +1172,9 @@ function saveCSV() {
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
-  document.getElementById('tcName').value = '';
-  currentFileName = '';
-  document.getElementById('fileInfoHeader').textContent = '▾ ' + '';
+  document.getElementById('tcName').value = 'TC001';
+  currentFileName = 'Test_case';
+  document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
   isDirty = false;
   exitConfirmed = false;
   renderAll();
