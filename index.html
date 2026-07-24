@@ -843,10 +843,6 @@ const PH = {
   },
 };
 
-function hexToRgba(hex, alpha) {
-  const v = parseInt(hex.slice(1), 16);
-  return `rgba(${v>>16},${(v>>8)&255},${v&255},${alpha})`;
-}
 function renderAll() {
   const body = document.getElementById('stepBody');
   const empty = document.getElementById('emptyState');
@@ -964,12 +960,12 @@ function renderAll() {
     actLbl.addEventListener('mouseenter', () => {
       body.querySelectorAll('.step-tr').forEach(r => {
         if (r.dataset.a === a) {
-          r.style.background = hexToRgba(actColors[a] || '#6b7280', 0.12);
+          r.querySelectorAll('.act-lbl').forEach(l => { l.style.background = '#d1d5db'; });
         }
       });
     });
     actLbl.addEventListener('mouseleave', () => {
-      body.querySelectorAll('.step-tr').forEach(r => { r.style.background = ''; });
+      body.querySelectorAll('.act-lbl').forEach(l => { l.style.background = ''; });
     });
     grid.appendChild(actLbl);
     }
