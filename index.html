@@ -94,6 +94,9 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .file-rename-input{font:13px/1.2 var(--mono);padding:1px 4px;border:1px solid var(--primary);border-radius:3px;outline:none;flex:1;min-width:0;display:none}
 .file-edit-btn{background:none;border:none;cursor:pointer;padding:1px 2px;border-radius:3px;color:var(--text-muted);display:flex;align-items:center}
 .file-edit-btn:hover{background:var(--key-hover);color:var(--text)}
+.tc-name-row{display:flex;align-items:center;gap:3px;padding:0 3px 6px}
+.tc-name-label{font-size:12px;font-family:var(--mono);color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.tc-name-rinput{font:12px/1.2 var(--mono);padding:1px 4px;border:1px solid var(--primary);border-radius:3px;outline:none;flex:1;min-width:0;display:none}
 .tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
 .tc-list-item:hover{background:var(--key-hover)}
 .tc-list-item.active{background:var(--primary);color:#fff}
@@ -137,9 +140,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .step-table th.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0 19px 54px}
 
 .th-sep{color:var(--border);margin:0 4px;user-select:none}
-.tc-name-inline{font-size:13px;font-weight:600;font-family:var(--font);color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;outline:none;width:200px;max-width:40%;box-sizing:border-box;display:inline-block;vertical-align:middle}
-.tc-name-inline:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--focus-ring)}
-
 /* Step rows */
 .td-idx{width:54px;text-align:center;vertical-align:middle;padding:0 15px}
 .td-syn{padding:6px 15px 6px 4px;vertical-align:middle}
@@ -252,7 +252,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .readonly .btn{pointer-events:none;opacity:.5}
 .readonly #readOnlyBtn{pointer-events:auto;opacity:1}
 .readonly #readOnlyBtn .material-symbols-outlined{font-size:16px}
-.readonly #tcName{pointer-events:none;opacity:.7}
 .readonly .step-tr{cursor:default}
 .step-tr.find-match td{background:#fef9c3!important}
 .step-tr.find-match:hover td{background:#fde68a!important}
@@ -296,7 +295,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 <header>
   <h1><span>Selenium</span> Test Case Editor</h1>
-  <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
   <div class="header-btns">
     <button class="btn" onclick="findClipboard()" id="findBtn" title="Ctrl+F: 搜尋剪貼簿內容"><span class="material-symbols-outlined">search</span> 搜尋剪貼板内容</button>
     <button class="btn" onclick="copyTC()"><span class="material-symbols-outlined">content_paste</span> 複製當前 Test Case</button>
@@ -319,6 +317,10 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
           <span id="fileInfoHeader" class="file-info-label"></span>
           <input id="fileRenameInput" class="file-rename-input" type="text" style="display:none">
           <button class="file-edit-btn" id="fileEditBtn" title="重新命名"><span class="material-symbols-outlined" style="font-size:14px">edit</span></button>
+        </div>
+        <div class="tc-name-row">
+          <span id="tcNameDisplay" class="tc-name-label"></span>
+          <input id="tcNameRenameInput" class="tc-name-rinput" type="text" style="display:none">
         </div>
         <div id="tcList" class="tc-list"></div>
       </div>
@@ -466,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderButtons();
   renderTcList();
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
-  document.getElementById('tcName').value = 'TC001';
+  document.getElementById('tcNameDisplay').textContent = 'TC001';
   document.getElementById('fileInput').addEventListener('change', loadCSV);
   document.getElementById('findBtn').addEventListener('mouseenter', async function() {
     try {
@@ -477,32 +479,37 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fileEditBtn').addEventListener('click', function() {
     const label = document.getElementById('fileInfoHeader');
     const input = document.getElementById('fileRenameInput');
+    const tcLabel = document.getElementById('tcNameDisplay');
+    const tcInput = document.getElementById('tcNameRenameInput');
     input.value = label.textContent.replace('▾ ', '');
-    label.style.display = 'none';
-    input.style.display = 'block';
+    tcInput.value = tcLabel.textContent;
+    label.style.display = 'none'; input.style.display = 'block';
+    tcLabel.style.display = 'none'; tcInput.style.display = 'block';
     input.focus();
     input.select();
-    document.getElementById('tcName').focus();
-    document.getElementById('tcName').select();
   });
   document.getElementById('fileRenameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') this.blur();
   });
-  document.getElementById('fileRenameInput').addEventListener('blur', function() {
-    const label = document.getElementById('fileInfoHeader');
-    const val = this.value.trim() || 'Test_case.csv';
-    currentFileName = val.replace(/\.csv$/i, '');
-    label.textContent = '▾ ' + val;
-    label.style.display = 'block';
-    this.style.display = 'none';
+  document.getElementById('tcNameRenameInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') this.blur();
   });
-  document.getElementById('tcName').addEventListener('input', function() {
-    if (currentIdx >= 0 && currentIdx < testCases.length) {
-      testCases[currentIdx].name = this.value.trim();
-      renderTcList();
-    }
-    isDirty = true;
-  });
+  function commitRename() {
+    const fileLabel = document.getElementById('fileInfoHeader');
+    const fileInput = document.getElementById('fileRenameInput');
+    const tcLabel = document.getElementById('tcNameDisplay');
+    const tcInput = document.getElementById('tcNameRenameInput');
+    const fv = fileInput.value.trim() || 'Test_case.csv';
+    currentFileName = fv.replace(/\.csv$/i, '');
+    fileLabel.textContent = '▾ ' + fv;
+    fileLabel.style.display = 'block'; fileInput.style.display = 'none';
+    const tv = tcInput.value.trim() || 'TC001';
+    if (currentIdx >= 0) { testCases[currentIdx].name = tv; renderTcList(); }
+    tcLabel.textContent = tv;
+    tcLabel.style.display = 'block'; tcInput.style.display = 'none';
+  }
+  document.getElementById('fileRenameInput').addEventListener('blur', commitRename);
+  document.getElementById('tcNameRenameInput').addEventListener('blur', commitRename);
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.activeElement?.blur();
     if (e.key === 'Delete') {
@@ -758,7 +765,7 @@ function loadCSV(e) {
     }
     if (testCases.length) {
       currentIdx = 0;
-      document.getElementById('tcName').value = testCases[0].name || '';
+      document.getElementById('tcNameDisplay').textContent = testCases[0].name || '';
       steps = testCases[0].steps;
       breakpoints = testCases[0].breakpoints;
     }
@@ -782,7 +789,7 @@ function addStep(param2, actionOverride) {
     currentIdx = testCases.length - 1;
     steps = testCases[currentIdx].steps;
     breakpoints = testCases[currentIdx].breakpoints;
-    document.getElementById('tcName').value = name;
+    document.getElementById('tcNameDisplay').textContent = name;
     renderTcList();
   }
   let action, val;
@@ -1200,7 +1207,6 @@ function hasValidationErrors() {
 
 // ============ Save ============
 function saveCSV() {
-  if (currentIdx >= 0) testCases[currentIdx].name = document.getElementById('tcName').value.trim();
   const err = hasValidationErrors();
   if (err) { showToast(err); return; }
   const lines = testCases.map(tc => {
@@ -1222,7 +1228,7 @@ function saveCSV() {
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
-  document.getElementById('tcName').value = 'TC001';
+  document.getElementById('tcNameDisplay').textContent = 'TC001';
   currentFileName = 'Test_case';
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
   isDirty = false;
@@ -1261,9 +1267,8 @@ function renderTcList() {
 }
 function switchTC(idx) {
   if (idx === currentIdx || idx < 0 || idx >= testCases.length) return;
-  if (currentIdx >= 0) testCases[currentIdx].name = document.getElementById('tcName').value;
   currentIdx = idx;
-  document.getElementById('tcName').value = testCases[idx].name || '';
+  document.getElementById('tcNameDisplay').textContent = testCases[idx].name || '';
   steps = testCases[idx].steps;
   breakpoints = testCases[idx].breakpoints;
   selectedRowIdx = -1;
