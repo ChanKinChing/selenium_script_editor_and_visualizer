@@ -88,6 +88,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   padding:0 3px 4px;margin:15px 0;
 }
 .tc-list{display:flex;flex-direction:column;gap:1px;flex:1;min-height:0;overflow-y:auto}
+.file-info-label{font-size:11px;font-family:var(--mono);color:var(--text-muted);padding:0 3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
 .tc-list-item:hover{background:var(--key-hover)}
 .tc-list-item.active{background:var(--primary);color:#fff}
@@ -288,9 +289,6 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 <header>
   <h1><span>Selenium</span> Test Case Editor</h1>
-  <span class="th-sep">|</span>
-  <span id="fileInfoHeader">未載入</span>
-  <span class="th-sep">&gt;</span>
   <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
   <div class="status">
     <span id="rowCount">0 行</span>
@@ -313,6 +311,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
     <div class="btn-list-wrap">
       <div class="btn-col-top">
         <div class="explorer-title">⬡ Test Case</div>
+        <div id="fileInfoHeader" class="file-info-label"></div>
         <div id="tcList" class="tc-list"></div>
       </div>
       <div class="btn-col-title">⬡ 指令</div>
@@ -685,7 +684,7 @@ function loadCSV(e) {
       breakpoints = testCases[0].breakpoints;
     }
     if (totalErr) showToast(`已載入，但有 ${totalErr} 列無法識別的操作（已標紅）`);
-    document.getElementById('fileInfoHeader').textContent = file.name;
+    document.getElementById('fileInfoHeader').textContent = '▾ ' + file.name;
     showToast('已載入 ' + file.name);
     isDirty = false;
     renderAll();
@@ -1146,7 +1145,7 @@ function clearAll() {
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
   document.getElementById('tcName').value = '';
   currentFileName = '';
-  document.getElementById('fileInfoHeader').textContent = '未載入';
+  document.getElementById('fileInfoHeader').textContent = '▾ ' + '';
   isDirty = false;
   exitConfirmed = false;
   renderAll();
