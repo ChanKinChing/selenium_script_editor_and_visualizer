@@ -43,7 +43,7 @@ header{
   box-shadow:var(--shadow);
   position:fixed;top:0;left:0;right:0;z-index:100;
 }
-header h1{font-size:18px;font-weight:700;white-space:nowrap}
+header h1{font-size:18px;font-weight:700;white-space:nowrap;cursor:pointer;user-select:none}
 header h1 span{color:var(--primary)}
 header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .header-btns{display:flex;align-items:center;gap:5px;margin-left:auto;flex-shrink:0}
@@ -241,6 +241,8 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .step-tr{cursor:grab}
 .step-tr:active{cursor:grabbing}
 .step-tr.drag-over td{border-top:2px solid var(--primary)}
+@keyframes dropFlash{0%{background:#d1d5db}100%{background:transparent}}
+.step-tr.drop-flash{animation:dropFlash 2.3s ease-out forwards}
 .readonly .fld{pointer-events:none;opacity:.7}
 .readonly .key-btn{pointer-events:none;opacity:.5}
 .readonly .key-btn:hover{background:var(--key-bg)!important;color:var(--text)!important}
@@ -593,11 +595,58 @@ document.addEventListener('DOMContentLoaded', () => {
     if (t > dragSrcIdx) t--;
     steps.splice(t, 0, m);
     isDirty = true; renderAll();
+    requestAnimationFrame(() => {
+      const row = body.querySelector(`[data-idx="${t}"]`);
+      if (row) row.classList.add('drop-flash');
+    });
     dragSrcIdx = -1;
   });
   body.addEventListener('dragend', () => {
     dragSrcIdx = -1;
     body.querySelectorAll('.step-tr.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+  // Easter egg: firework on title click
+  document.querySelector('header h1').addEventListener('click', function(e) {
+    const COLORS = ['#f59e0b','#ef4444','#f97316','#ec4899','#06b6d4','#8b5cf6','#10b981','#fbbf24'];
+    const canvas = document.createElement('canvas');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const particles = [];
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * 6.2832;
+      const speed = 2 + Math.random() * 4;
+      particles.push({
+        x: e.clientX, y: e.clientY,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: 2 + Math.random() * 3,
+        color: COLORS[Math.random() * COLORS.length | 0],
+        life: 1, decay: 0.005 + Math.random() * 0.008
+      });
+    }
+    let running = true;
+    function frame() {
+      if (!running) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      for (const p of particles) {
+        if (p.life <= 0) continue;
+        alive = true;
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.05;
+        p.life -= p.decay;
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, 6.2832);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (alive) requestAnimationFrame(frame);
+      else { document.body.removeChild(canvas); running = false; }
+    }
+    frame();
   });
 });
 
