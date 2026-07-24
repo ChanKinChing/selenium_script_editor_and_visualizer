@@ -59,6 +59,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .btn-import-csv{border-color:var(--primary);background:#fff}
 .btn-import-csv:hover{background:var(--key-hover)}
 .file-input-wrap{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-sm);display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--surface);cursor:pointer;font-size:12px;white-space:nowrap;font-family:var(--font);color:var(--text)}
+.file-input-wrap.btn-import-csv{border-color:var(--primary)}
 .file-input-wrap:hover{background:var(--key-hover)}
 .file-input-wrap input[type=file]{position:absolute;left:0;top:0;opacity:0;width:100%;height:100%;cursor:pointer}
 
@@ -1234,6 +1235,7 @@ function clearAll() {
 function copyTC() {
   if (currentIdx < 0) { showToast('沒有 Test Case'); return; }
   const tc = testCases[currentIdx];
+  if (tc.steps.some(s => s._error)) { showToast('有欄位錯誤，先修正再複製'); return; }
   const cells = [tc.name || 'Untitled'];
   for (const s of tc.steps) { cells.push(s.p1||'', s.p2||'', s.a||''); }
   const csvLine = cells.map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
