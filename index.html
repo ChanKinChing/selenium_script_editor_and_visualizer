@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Selenium Test Case Generator &amp; Editor</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --border: #c8ccd4;
+  --text: #1a1d23;
+  --text-muted: #6b7280;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --key-bg: #e8eaee;
+  --key-hover: #d1d5db;
+  --block-line: #f59e0b;
+  --block-bg: #fffbeb;
+  --focus-ring: rgba(37,99,235,0.25);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.07);
+  --font: 'Segoe UI','Noto Sans TC',system-ui,sans-serif;
+  --mono: 'Cascadia Code','JetBrains Mono','Consolas',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--font);
+  background:var(--bg);color:var(--text);
+  height:100vh;display:flex;flex-direction:column;
+  font-size:15px;
+}
+
+/* ── Header ── */
+header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  box-shadow:var(--shadow);
+  position:fixed;top:0;left:0;right:0;z-index:100;
+}
+header h1{font-size:18px;font-weight:700;white-space:nowrap}
+header h1 span{color:var(--primary)}
+header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
+.header-btns{display:flex;align-items:center;gap:5px;margin-left:auto;flex-shrink:0}
+.btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);color:var(--text);cursor:pointer;
+  font-size:12px;white-space:nowrap;transition:all .12s;font-family:var(--font);
+}
+.btn:hover{background:var(--key-hover)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.file-input-wrap{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-sm);display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--surface);cursor:pointer;font-size:12px;white-space:nowrap;font-family:var(--font);color:var(--text)}
+.file-input-wrap:hover{background:var(--key-hover)}
+.file-input-wrap input[type=file]{position:absolute;left:0;top:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* ── Steps area (3-column) ── */
+.steps-area{
+  flex:1;overflow-y:auto;display:flex;position:relative;
+}
+
+/* ── Left button column ── */
+.steps-col.btns{
+  width:25%;flex-shrink:0;
+  position:sticky;top:0;
+  height:100vh;overflow:hidden;
+  background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 20px 8px;display:flex;flex-direction:column;gap:4px;
+}
+.btn-col-top{flex:1;min-height:0;display:flex;flex-direction:column;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px}
+.btn-list-wrap{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding-bottom:15px}
+.btn-col-title{
+  font-size:13px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:.5px;
+  padding:0 3px 4px;
+}
+.explorer-title{
+  font-size:13px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:.5px;
+  padding:0 3px 4px;margin:15px 0;
+}
+.tc-list{display:flex;flex-direction:column;gap:1px}
+.tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
+.tc-list-item:hover{background:var(--key-hover)}
+.tc-list-item.active{background:var(--primary);color:#fff}
+.steps-col.btns .btn-group{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:3px}
+.steps-col.btns .btn-group-label{font-size:8px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;padding:1px 3px;grid-column:1 / -1}
+.steps-col.btns .key-btn{
+  display:flex;flex-direction:column;align-items:stretch;
+  padding:2px 5px;border:1px solid var(--border);border-radius:3px;
+  background:var(--key-bg);cursor:pointer;font-size:10px;
+  font-family:var(--font);color:var(--text);transition:all .1s;
+  user-select:none;text-align:left;line-height:1.2;
+}
+.steps-col.btns .key-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.steps-col.btns .key-btn:hover .kb-desc{color:#bfdbfe}
+.steps-col.btns .key-btn.block-key{}
+.steps-col.btns .key-btn.custom-btn{background:#d1fae5;border-color:#6ee7b7}
+.steps-col.btns .key-btn.custom-btn:hover{background:#6ee7b7;color:#fff}
+.kb-act{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:-0.3px;display:flex;justify-content:space-between;align-items:center;width:100%}
+.kb-icon{font-size:14px}
+.kb-desc{font-family:var(--font);font-size:9px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Middle column (table) ── */
+.steps-col.mid{
+  flex:1;min-width:0;display:flex;flex-direction:column;
+}
+.mid-scroll{flex:1;padding:0 0 6px}
+.step-table{width:100%;border-collapse:collapse;table-layout:fixed}
+
+/* Table header */
+.step-table thead{background:var(--surface)}
+.step-table thead th{
+  font-size:13px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:.5px;
+  padding:8px 12px 4px;text-align:left;border-bottom:1px solid var(--border);
+}
+.th-idx{width:54px}
+.th-syn{padding:15px 0}
+.th-sem{width:33%;border-left:1px solid var(--border);padding:15px 0}
+
+.th-sep{color:var(--border);margin:0 4px;user-select:none}
+.tc-name-inline{font-size:13px;font-weight:600;font-family:var(--font);color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;outline:none;width:200px;max-width:40%;box-sizing:border-box;display:inline-block;vertical-align:middle}
+.tc-name-inline:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--focus-ring)}
+
+/* Step rows */
+.td-idx{width:54px;text-align:center;vertical-align:middle;padding:0 15px}
+.td-syn{padding:6px 15px 6px 4px;vertical-align:middle}
+.td-sem{width:33%;padding:2px 12px 2px 8px;vertical-align:middle;border-left:1px solid var(--border)}
+
+/* Step row - inner grid for syntax fields */
+.step-tr{transition:background .12s}
+.step-tr:hover{background:#e5e7eb}
+.step-tr .td-idx .num{
+  font-family:var(--font);font-weight:600;color:var(--text-muted);
+  font-size:10px;display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;cursor:pointer;transition:all .12s;
+}
+.step-tr .td-idx .num.bp{background:var(--danger);color:#fff;font-weight:700}
+
+/* Syntax inner grid */
+.syn-grid{
+  display:grid;
+  grid-template-columns:1fr 16px 1fr 16px 1fr 20px;
+  gap:2px;align-items:center;position:relative;
+}
+.syn-grid .comma{
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  color:var(--text-muted);text-align:center;user-select:none;line-height:1;
+}
+.syn-grid .del-btn{
+  background:none;border:none;cursor:pointer;color:var(--text-muted);
+  font-size:12px;padding:1px;border-radius:3px;opacity:.3;transition:opacity .15s;text-align:center;
+}
+.step-tr:hover .del-btn{opacity:1}
+.syn-grid .del-btn:hover{color:var(--danger);background:#fef2f2;opacity:1}
+.syn-grid .act-lbl{
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  padding:2px 4px;border-radius:3px;white-space:nowrap;text-align:right;
+}
+
+/* Semantic cell */
+.sem-cell{
+  font-size:12px;color:var(--text);line-height:1.3;
+  white-space:normal;word-break:break-all;overflow-wrap:break-word;
+  display:block;padding-left:1.2em;text-indent:-1.2em;
+}
+.sem-cell::before{content:"- "}
+.sem-cell .sem-val{font-family:var(--mono);font-size:11px;padding:0 5px;border-radius:3px}
+.sem-cell .sem-val.filled{color:#1e40af;background:#bfdbfe}
+.sem-cell .sem-val.empty{color:#1e40af;background:#bfdbfe}
+.sem-cell .sem-path{font-family:var(--mono);font-size:11px;padding:0 5px;border-radius:3px}
+.sem-cell .sem-path.filled{color:#166534;background:#bbf7d0}
+.sem-cell .sem-path.empty{color:#166534;background:#bbf7d0}
+.sem-hl{color:#1e40af;font-family:var(--mono);font-size:11px;background:#bfdbfe;padding:0 5px;border-radius:3px}
+
+/* ── Input / Badge grid overlay (no layout shift on hover) ── */
+.fld-wrap{
+  position:relative;min-width:30px;min-height:28px;
+  display:grid;grid-template:auto / 1fr;
+}
+.fld-wrap > *{grid-area:1/1}
+.fld-badge{
+  display:flex;align-items:center;justify-content:flex-end;padding:2px 6px;border-radius:4px;
+  background:#e5e7eb;color:#374151;cursor:pointer;
+  font:11px/1.2 var(--mono);white-space:pre-wrap;word-break:break-all;
+  min-height:28px;border:2px solid transparent;box-sizing:border-box;text-align:right;
+  visibility:hidden;
+}
+.fld{
+  font:11px/1.2 var(--mono);padding:2px 6px;border-radius:4px;
+  border:2px solid var(--border);background:var(--surface);
+  outline:none;width:100%;min-height:28px;resize:none;overflow:hidden;
+  transition:border-color .15s;display:block;box-sizing:border-box;text-align:right;
+  overflow-wrap:break-word;word-break:break-all;
+  visibility:visible;
+}
+/* When has value and row NOT hovered: show badge, hide input */
+.step-tr:not(:hover) .fld-wrap.has-value .fld-badge{visibility:visible}
+.step-tr:not(:hover) .fld-wrap.has-value .fld{visibility:hidden;pointer-events:none}
+/* When row IS hovered: show input for all fields */
+.step-tr:hover .fld-wrap .fld-badge{visibility:hidden;pointer-events:none}
+.step-tr:hover .fld-wrap .fld{visibility:visible}
+/* Focus-within always shows input (user typing) */
+.fld-wrap:focus-within .fld{visibility:visible!important}
+.fld-wrap:focus-within .fld-badge{visibility:hidden!important}
+
+.fld:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--focus-ring)}
+.fld.danger{border-color:var(--danger);background:#fef2f2}
+.fld.danger:focus{border-color:var(--danger);box-shadow:0 0 0 2px rgba(239,68,68,0.2)}
+.fld-badge.danger{border-color:var(--danger);background:#fef2f2;color:var(--danger)}
+.fld:read-only{border-color:transparent;background:transparent;cursor:default;padding:2px 0;resize:none}
+.fld:read-only:focus{box-shadow:none}
+.fld.p1.match-hover{background:#dbeafe!important;border-color:#93c5fd!important}
+
+.step-tr .td-syn.has-block .fld-wrap:not(.fld-ro){background:var(--block-bg);border-radius:3px}
+.step-tr.row-error td{background:#fef2f2}
+.step-tr.row-error:hover td{background:#fee2e2}
+
+.step-tr.selected td{background:#e0f2fe}
+.step-tr.selected:hover td{background:#bae6fd}
+.app-footer{height:30px;background:var(--surface);flex-shrink:0}
+.step-tr{cursor:grab}
+.step-tr:active{cursor:grabbing}
+.step-tr.drag-over td{border-bottom:2px solid var(--primary)}
+.readonly .fld{pointer-events:none;opacity:.7}
+.readonly .key-btn{pointer-events:none;opacity:.5}
+.readonly .key-btn:hover{background:var(--key-bg)!important;color:var(--text)!important}
+.readonly .del-btn{pointer-events:none;opacity:.3}
+.readonly .file-input-wrap{pointer-events:none;opacity:.5}
+.readonly .btn{pointer-events:none;opacity:.5}
+.readonly #readOnlyBtn{pointer-events:auto;opacity:1}
+.readonly #tcName{pointer-events:none;opacity:.7}
+.readonly .step-tr{cursor:default}
+.readonly .step-tr:active{cursor:default}
+
+/* ── Empty ── */
+.empty-state{text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13px}
+.empty-state .hint{font-size:12px}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#1f2937;color:#fff;padding:8px 18px;border-radius:8px;
+  font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Save Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal-box{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:400px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2)}
+.modal-box h3{font-size:16px;margin-bottom:8px;color:var(--text)}
+.modal-box p{font-size:13px;color:var(--text-muted);margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .steps-col.btns{width:25%}
+}
+@media(max-width:700px){
+  .steps-area{flex-direction:column}
+  .steps-col.btns{width:100%;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--border);padding:5px 8px}
+  .steps-col.btns .btn-group{grid-template-columns:1fr 1fr;flex-wrap:wrap;display:grid}
+}
+@media(max-width:600px){
+  header{padding:6px 10px;gap:6px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Selenium</span> Test Case Generator &amp; Editor</h1>
+  <div class="status">
+    <span id="rowCount">0 行</span>
+  </div>
+  <div class="header-btns">
+    <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn">🔒 唯讀</button>
+    <span class="file-input-wrap">
+      <input type="file" id="fileInput" accept=".csv">
+      📂 載入 CSV
+    </span>
+    <button class="btn" onclick="copyTC()">📋 複製當前 Test Case</button>
+    <button class="btn" onclick="clearAll()">🗑 清空</button>
+    <button class="btn btn-primary" onclick="saveCSV()">💾 導出 CSV</button>
+  </div>
+</header>
+
+<div class="steps-area" id="stepsArea">
+  <div class="steps-col btns" id="btnCol">
+    <div class="btn-list-wrap">
+      <div class="btn-col-top">
+        <div class="explorer-title">⬡ Test Case</div>
+        <div id="tcList" class="tc-list"></div>
+      </div>
+      <div class="btn-col-title">⬡ 指令</div>
+    </div>
+  </div>
+  <div class="steps-col mid" id="midCol">
+    <div class="mid-scroll" id="midScroll">
+      <table class="step-table" id="stepTable">
+        <thead>
+          <tr>
+            <th class="th-idx"></th>
+            <th class="th-syn">
+              ⬡ Selenium Syntax
+              <span class="th-sep">|</span>
+              <span id="fileInfoHeader">未載入</span>
+              <span class="th-sep">&gt;</span>
+              <input type="text" id="tcName" class="tc-name-inline" placeholder="TC001-login">
+            </th>
+            <th class="th-sem">◎ 語義說明</th>
+          </tr>
+        </thead>
+        <tbody id="stepBody">
+      </table>
+      <div class="empty-state" id="emptyState"><p>尚未加入步驟</p><p class="hint">點擊左側按鈕開始</p></div>
+    </div>
+    <footer class="app-footer"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="saveModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>有未儲存的變更</h3>
+    <p>Test Case 尚未存檔，要離開嗎？</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="confirmExit()">確認退出</button>
+      <button class="btn btn-primary" onclick="saveAndExit()">前往保存</button>
+      <button class="btn" onclick="document.getElementById('saveModal').classList.add('hidden')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="welcomeModal" class="modal-overlay hidden">
+  <div class="modal-box" style="text-align:center;position:relative">
+    <div style="font-size:48px;margin-bottom:8px">📋</div>
+    <h3>開始使用</h3>
+    <p>Selenium Test Case Generator</p>
+    <div class="modal-btns" style="flex-direction:column;align-items:stretch">
+      <button class="btn btn-primary" onclick="createNewTC()" style="padding:10px;font-size:14px">新建 Test Case</button>
+      <button class="btn" onclick="triggerImport()" style="padding:10px;font-size:14px">匯入 CSV 檔案</button>
+    </div>
+    <button class="btn" onclick="closeWelcome()" style="position:absolute;top:8px;right:12px;border:none;background:none;font-size:18px;cursor:pointer;color:#9ca3af">✕</button>
+  </div>
+</div>
+
+<script>
+// ============ Button definitions ============
+const BTN_GROUPS = [
+  {
+    label: '導航／等待',
+    items: [
+      { action: 'open', fmt: ',URL,open', labels: ['URL'], desc: '開啟網頁' },
+      { action: 'pause', fmt: ',秒數,pause', labels: ['秒數'], desc: '等待 N 秒' },
+    ]
+  },
+  {
+    label: '操作',
+    items: [
+      { action: 'click', fmt: ',XPath,click', labels: ['路徑'], desc: '點擊元素' },
+      { action: 'type', fmt: ',XPath,値,type', labels: ['路徑','値'], desc: '輸入文字' },
+      { action: 'dropdown', fmt: ',XPath,選項,dropdown', labels: ['路徑','選項'], desc: '下拉選取' },
+      { action: 'press', fmt: ',XPath,按鍵,press', labels: ['路徑','按鍵'], desc: '按鍵操作' },
+    ]
+  },
+  {
+    label: '確認存在',
+    items: [
+      { action: 'present', fmt: ',XPath,present', labels: ['路徑'], desc: '存在 DOM' },
+      { action: 'visible', fmt: ',XPath,visible', labels: ['路徑'], desc: '可見' },
+      { action: 'not_present', fmt: ',XPath,not_present', labels: ['路徑'], desc: '不存在 DOM' },
+      { action: 'not_visible', fmt: ',XPath,not_visible', labels: ['路徑'], desc: '不可見' },
+    ]
+  },
+  {
+    label: '斷言',
+    items: [
+      { action: 'assert_text', fmt: ',XPath,預期文字,assert_text', labels: ['路徑','預期'], desc: '斷言文字' },
+      { action: 'assert_attribute_value', fmt: ',XPath,屬性名,assert_value', labels: ['路徑','屬性'], desc: '斷言屬性值' },
+      { action: 'assert_class', fmt: ',XPath,class名,assert_class', labels: ['路徑','class'], desc: '斷言 class' },
+      { action: 'compare_eq', fmt: ',變數A,變數B,compare_eq', labels: ['變數 A','變數 B'], desc: '比較變數' },
+    ]
+  },
+  {
+    label: '取值',
+    items: [
+      { action: 'get_text', fmt: ',XPath,變數名,get_text', labels: ['路徑','變數'], desc: '取文字' },
+      { action: 'get_attribute_value', fmt: ',XPath,變數,get_attr', labels: ['路徑','變數'], desc: '取屬性值' },
+    ]
+  },
+  {
+    label: '條件區塊',
+    items: [
+      { action: 'check_presence_to_continue', fmt: ',XPath,check_presence', labels: ['路徑'], desc: '條件區塊', cls: 'block-key' },
+      { action: 'end_check_presence_to_continue', fmt: ',,end_check', labels: [], desc: '結束區塊', cls: 'block-key' },
+    ]
+  },
+  {
+    label: '其他',
+    items: [
+      { action: 'print', desc: '輸出日誌' },
+      { action: 'check_file_downloaded', desc: '確認下載' },
+      { action: 'ENTER', desc: '按 ENTER', extra: { a: 'press', val: 'ENTER' } },
+      { action: 'TAB', desc: '按 TAB', extra: { a: 'press', val: 'TAB' } },
+      { action: 'DELETE', desc: '按 DELETE', extra: { a: 'press', val: 'DELETE' } },
+      { action: 'CONTROL+A', desc: '全選', extra: { a: 'press', val: 'CONTROL+A' } },
+      { action: 'custom', desc: '自訂動作', cls: 'custom-btn' },
+    ]
+  },
+];
+
+const BTN_ICONS = {
+  'open':'🌐','pause':'⏳','click':'🖱️','type':'⌨️','dropdown':'📋','press':'🔘',
+  'present':'👁️','visible':'👁️','not_present':'🚫','not_visible':'👻',
+  'assert_text':'✅','assert_attribute_value':'✅','assert_class':'✅',
+  'get_text':'📝','get_attribute_value':'📝','compare_eq':'⚖️',
+  'check_presence_to_continue':'🔀','end_check_presence_to_continue':'🔚',
+  'print':'📢','check_file_downloaded':'📎',
+  'ENTER':'⏎','TAB':'⇥','DELETE':'⌫','CONTROL+A':'🔲',
+  'custom':'✏️','paste':'📋',
+};
+
+// ============ State ============
+let currentFileName = '';
+let testCases = [];
+let currentIdx = -1;
+let steps = [];
+let breakpoints = new Set();
+let selectedRowIdx = -1;
+let dragSrcIdx = -1;
+let isDirty = false;
+let isReadOnly = false;
+
+// ============ Init ============
+document.addEventListener('DOMContentLoaded', () => {
+  renderButtons();
+  renderTcList();
+  document.getElementById('fileInput').addEventListener('change', loadCSV);
+  document.getElementById('tcName').addEventListener('input', function() {
+    if (currentIdx >= 0 && currentIdx < testCases.length) {
+      testCases[currentIdx].name = this.value.trim();
+      renderTcList();
+    }
+    isDirty = true;
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.activeElement?.blur();
+    if (e.key === 'Delete') {
+      const active = document.activeElement;
+      if (active && !active.closest('.steps-col.btns') && !active.closest('header')) {
+        const row = active.closest('.step-tr');
+        if (row) { steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); }
+      }
+    }
+  });
+  // Header hide on scroll (main scroll container + buttons panel)
+  const header = document.querySelector('header');
+  const midScroll = document.getElementById('midScroll');
+  const stepsArea = document.getElementById('stepsArea');
+  const btnCol = document.querySelector('.steps-col.btns');
+  // Set initial padding-top on midScroll and btnCol for fixed header
+  midScroll.style.paddingTop = header.offsetHeight + 'px';
+  btnCol.style.paddingTop = header.offsetHeight + 'px';
+
+  // Hover matching on syntax fields
+  const scrollArea = document.getElementById('stepsArea');
+  scrollArea.addEventListener('mouseover', e => {
+    const wrap = e.target.closest('.fld-wrap.p1');
+    if (!wrap) { clearHoverMatch(); return; }
+    const inp = wrap.querySelector('.fld');
+    if (inp) applyHoverMatch(inp.value);
+  });
+  scrollArea.addEventListener('mouseout', e => {
+    const wrap = e.target.closest('.fld-wrap.p1');
+    if (!wrap) return;
+    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.step-tr')) return;
+    clearHoverMatch();
+  });
+  // Select row on click (exclude textarea, delete btn, index, semantic tags)
+  document.getElementById('stepBody').addEventListener('click', (e) => {
+    const tr = e.target.closest('.step-tr');
+    if (!tr) return;
+    if (e.target.closest('.fld, .del-btn, .td-idx, .sem-val, .sem-path, .sem-hl')) return;
+    const idx = parseInt(tr.dataset.idx);
+    selectedRowIdx = selectedRowIdx === idx ? -1 : idx;
+    updateSelectedVisual();
+  });
+  scrollArea.addEventListener('mouseover', e => {
+    const tdSem = e.target.closest('.td-sem');
+    if (!tdSem) return;
+    const tr = tdSem.closest('.step-tr');
+    if (!tr) { clearHoverMatch(); return; }
+    const idx = tr.dataset.idx;
+    const inp = document.querySelector(`.step-tr[data-idx="${idx}"] .fld-wrap.p1 .fld`);
+    if (inp) applyHoverMatch(inp.value);
+  });
+  scrollArea.addEventListener('mouseout', e => {
+    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.step-tr')) return;
+    clearHoverMatch();
+  });
+  // Welcome modal on first visit
+  if (testCases.length === 0 && !sessionStorage.getItem('welcomeDismissed'))
+    document.getElementById('welcomeModal').classList.remove('hidden');
+  // Copy semantic tag on click
+  document.getElementById('stepBody').addEventListener('click', (e) => {
+    const tag = e.target.closest('.sem-val, .sem-path, .sem-hl');
+    if (!tag || !tag.closest('.sem-cell')) return;
+    navigator.clipboard.writeText(tag.textContent).then(() => {
+      showToast('已複製');
+    }).catch(() => {
+      showToast('複製失敗');
+    });
+  });
+  // Drag & drop step reordering
+  const body = document.getElementById('stepBody');
+  body.addEventListener('dragstart', e => {
+    const tr = e.target.closest('.step-tr'); if (!tr) return;
+    if (e.target.closest('.fld, .del-btn, .td-idx, .sem-val, .sem-path, .sem-hl')) return;
+    dragSrcIdx = parseInt(tr.dataset.idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  });
+  body.addEventListener('dragover', e => {
+    const tr = e.target.closest('.step-tr'); if (!tr || dragSrcIdx < 0) return;
+    e.preventDefault();
+    body.querySelectorAll('.step-tr.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (parseInt(tr.dataset.idx) !== dragSrcIdx) tr.classList.add('drag-over');
+  });
+  body.addEventListener('drop', e => {
+    const tr = e.target.closest('.step-tr'); if (!tr || dragSrcIdx < 0) return;
+    e.preventDefault();
+    let t = parseInt(tr.dataset.idx);
+    if (dragSrcIdx === t) { dragSrcIdx = -1; return; }
+    const [m] = steps.splice(dragSrcIdx, 1);
+    if (t > dragSrcIdx) t--;
+    steps.splice(t, 0, m);
+    isDirty = true; renderAll();
+    dragSrcIdx = -1;
+  });
+  body.addEventListener('dragend', () => {
+    dragSrcIdx = -1;
+    body.querySelectorAll('.step-tr.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+});
+
+// ============ Beforeunload + Save Prompt ============
+let exitConfirmed = false;
+window.addEventListener('beforeunload', e => {
+  if (!isDirty || exitConfirmed) return;
+  document.getElementById('saveModal').classList.remove('hidden');
+  e.preventDefault();
+  e.returnValue = '';
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible')
+    document.getElementById('saveModal').classList.add('hidden');
+});
+function confirmExit() {
+  exitConfirmed = true;
+  isDirty = false;
+  document.getElementById('saveModal').classList.add('hidden');
+  location.reload();
+}
+function saveAndExit() {
+  saveCSV();
+  exitConfirmed = true;
+  isDirty = false;
+  document.getElementById('saveModal').classList.add('hidden');
+  location.reload();
+}
+
+function renderButtons() {
+  const wrap = document.querySelector('.btn-list-wrap');
+  wrap.querySelectorAll('.btn-group').forEach(el => el.remove());
+  for (const g of BTN_GROUPS) {
+    const grp = document.createElement('div');
+    grp.className = 'btn-group';
+    const lbl = document.createElement('div');
+    lbl.className = 'btn-group-label';
+    lbl.textContent = g.label;
+    grp.appendChild(lbl);
+    for (const item of g.items) {
+      const btn = document.createElement('button');
+      btn.className = 'key-btn' + (item.cls ? ' ' + item.cls : '');
+      btn.innerHTML = `<span class="kb-act"><span>${item.action}</span><span class="kb-icon">${BTN_ICONS[item.action]||''}</span></span><span class="kb-desc">${item.desc}</span>`;
+      if (item.extra) {
+        btn.onclick = () => addStep(item.extra.val, item.extra.a);
+      } else {
+        btn.onclick = () => addStep(item.action);
+      }
+      grp.appendChild(btn);
+    }
+    wrap.appendChild(grp);
+  }
+}
+
+// ============ CSV ============
+function parseCSVLine(line) {
+  const r = []; let c = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (q && i+1 < line.length && line[i+1] === '"') { c += '"'; i++; }
+      else if (q) { q = false; }
+      else if (c === '') { q = true; }
+      else { c += ch; }
+    } else if (ch === ',' && !q) { r.push(c); c = ''; }
+    else { c += ch; }
+  }
+  r.push(c);
+  return r;
+}
+
+function loadCSV(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentFileName = file.name.replace(/\.csv$/i, '');
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const txt = ev.target.result;
+    const lines = txt.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return;
+    testCases = [];
+    let totalErr = 0;
+    for (const line of lines) {
+      const cells = parseCSVLine(line);
+      const name = cells[0] || '';
+      const tcSteps = [];
+      for (let i = 1; i + 2 < cells.length; i += 3) {
+        const a = cells[i+2] || '';
+        const unknown = a !== '' && !ALL_ACTIONS.includes(a);
+        if (unknown) totalErr++;
+        tcSteps.push({ p1: cells[i] || '', p2: cells[i+1] || '', a, _error: unknown || undefined });
+      }
+      testCases.push({ name, steps: tcSteps, breakpoints: new Set() });
+    }
+    if (testCases.length) {
+      currentIdx = 0;
+      document.getElementById('tcName').value = testCases[0].name || '';
+      steps = testCases[0].steps;
+      breakpoints = testCases[0].breakpoints;
+    }
+    if (totalErr) showToast(`已載入，但有 ${totalErr} 列無法識別的操作（已標紅）`);
+    document.getElementById('fileInfoHeader').textContent = file.name;
+    showToast('已載入 ' + file.name);
+    isDirty = false;
+    renderAll();
+    renderTcList();
+  };
+  reader.onerror = () => { showToast('無法讀取檔案'); };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ============ Actions ============
+function addStep(param2, actionOverride) {
+  if (currentIdx < 0) {
+    const name = 'TC ' + (testCases.length + 1);
+    testCases.push({ name, steps: [], breakpoints: new Set() });
+    currentIdx = testCases.length - 1;
+    steps = testCases[currentIdx].steps;
+    breakpoints = testCases[currentIdx].breakpoints;
+    document.getElementById('tcName').value = name;
+    renderTcList();
+  }
+  let action, val;
+  if (actionOverride) {
+    val = param2;
+    action = actionOverride;
+  } else if (param2 === 'custom') {
+    action = '';
+    val = '';
+  } else if (param2) {
+    action = param2;
+    val = '';
+  } else {
+    action = '';
+    val = '';
+  }
+  const newStep = { p1: '', p2: val, a: action };
+  let idx;
+  if (selectedRowIdx >= 0) {
+    steps.splice(selectedRowIdx + 1, 0, newStep);
+    idx = selectedRowIdx + 1;
+    selectedRowIdx = -1;
+  } else {
+    steps.push(newStep);
+    idx = steps.length - 1;
+  }
+  isDirty = true;
+  renderAll();
+  if (NEEDS_ELEMENT.includes(action)) {
+    focusField(idx, 'p1');
+  } else if (NEEDS_VALUE.includes(action)) {
+    focusField(idx, 'p2');
+  }
+  const sp = document.getElementById('stepsArea');
+  if (sp) {
+    const row = document.querySelector(`.step-tr[data-idx="${idx}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function focusField(idx, field) {
+  setTimeout(() => {
+    const wrap = document.querySelector(`.step-tr[data-idx="${idx}"] .fld-wrap.${field}`);
+    if (wrap) { const inp = wrap.querySelector('.fld'); if (inp) { inp.focus(); inp.select(); } }
+  }, 50);
+}
+
+function updateSelectedVisual() {
+  document.querySelectorAll('.step-tr.selected').forEach(el => el.classList.remove('selected'));
+  if (selectedRowIdx >= 0) {
+    const tr = document.querySelector(`.step-tr[data-idx="${selectedRowIdx}"]`);
+    if (tr) tr.classList.add('selected');
+  }
+}
+
+function createNewTC() {
+  document.getElementById('welcomeModal').classList.add('hidden');
+  sessionStorage.setItem('welcomeDismissed', '1');
+  addStep('custom');
+}
+function triggerImport() {
+  document.getElementById('welcomeModal').classList.add('hidden');
+  sessionStorage.setItem('welcomeDismissed', '1');
+  document.getElementById('fileInput').click();
+}
+function closeWelcome() {
+  document.getElementById('welcomeModal').classList.add('hidden');
+  sessionStorage.setItem('welcomeDismissed', '1');
+}
+function toggleReadOnly() {
+  isReadOnly = !isReadOnly;
+  document.body.classList.toggle('readonly', isReadOnly);
+  document.getElementById('readOnlyBtn').textContent = isReadOnly ? '🔓 編輯' : '🔒 唯讀';
+}
+
+// ============ Rendering ============
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+const SEM = {
+  'open': {icon:'🌐', desc:(p1,p2)=>`開啟網頁 <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'URL'}</span>`},
+  'pause': {icon:'⏳', desc:(p1,p2)=>`等待 <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'秒數'}</span> 秒 ⏰`},
+  'click': {icon:'🖱️', desc:(p1)=>`點擊元素 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span>`},
+  'type': {icon:'⌨️', desc:(p1,p2)=>`在 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 輸入 <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'値'}</span>`},
+  'dropdown': {icon:'📋', desc:(p1,p2)=>`從 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 選 <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'選項'}</span>`},
+  'press': {icon:'🔘', desc:(p1,p2)=>`在 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 按 <span class="sem-hl">${esc(p2)||''}</span>`},
+  'present': {icon:'👁️', desc:(p1)=>`確認 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 存在於 DOM`},
+  'visible': {icon:'👁️', desc:(p1)=>`確認 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 可見`},
+  'not_present': {icon:'🚫', desc:(p1)=>`確認 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 不存在`},
+  'not_visible': {icon:'👻', desc:(p1)=>`確認 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 不可見`},
+  'assert_text': {icon:'✅', desc:(p1,p2)=>`斷言 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 文字 = <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'預期'}</span>`},
+  'assert_attribute_value': {icon:'✅', desc:(p1,p2)=>`斷言 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 屬性 = <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'屬性名'}</span>`},
+  'assert_class': {icon:'✅', desc:(p1,p2)=>`斷言 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> class = <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'class名'}</span>`},
+  'get_text': {icon:'📝', desc:(p1,p2)=>`從 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 取文字 → <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'變數'}</span>`},
+  'get_attribute_value':{icon:'📝', desc:(p1,p2)=>`從 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 取屬性 → <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'變數'}</span>`},
+  'compare_eq':{icon:'⚖️', desc:(p1,p2)=>`比較 <span class="sem-val ${p1?'filled':'empty'}">${esc(p1)||'變數A'}</span> = <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'變數B'}</span>`},
+  'check_presence_to_continue':{icon:'🔀', desc:(p1,p2)=>`若 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 存在 → 執行以下區塊`},
+  'end_check_presence_to_continue':{icon:'🔚', desc:()=>`結束條件區塊`},
+  'print':{icon:'📢', desc:(p1)=>`輸出日誌: <span class="sem-val ${p1?'filled':'empty'}">${esc(p1)||'訊息'}</span>`},
+  'check_file_downloaded':{icon:'📎', desc:(p1,p2)=>`確認下載: <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'檔名'}</span>`},
+};
+
+const NEEDS_ELEMENT = ['click','type','dropdown','press','present','visible','not_present','not_visible',
+  'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','check_presence_to_continue','print'];
+const NEEDS_VALUE = ['open','type','dropdown','press','assert_text','assert_attribute_value','assert_class',
+  'get_text','get_attribute_value','compare_eq','check_file_downloaded','pause'];
+const NEEDS_NUMERIC = ['pause'];
+const ALL_ACTIONS = ['open','pause','click','type','dropdown','press','present','visible','not_present','not_visible',
+  'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','compare_eq',
+  'check_presence_to_continue','end_check_presence_to_continue','print','check_file_downloaded'];
+
+const VALIDATORS = {
+  'pause': { p2: v => /^\d*$/.test(v) || '' },
+  'open': { p2: v => v === '' || /^https?:\/\//.test(v) || v.startsWith('/') || '' },
+};
+const XPATH_ACTIONS = ['click','type','dropdown','press','present','visible','not_present','not_visible',
+  'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','check_presence_to_continue'];
+const XPATH_VALIDATOR = v => v === '' || /^(\/\/?|\(|\.\/)/.test(v) || '';
+
+const PH = {
+  p1: {
+    'open':'','click':'XPath','type':'XPath','dropdown':'XPath','press':'XPath',
+    'present':'XPath','visible':'XPath','not_present':'XPath','not_visible':'XPath',
+    'assert_text':'XPath','assert_attribute_value':'XPath','assert_class':'XPath',
+    'get_text':'XPath','get_attribute_value':'XPath','check_presence_to_continue':'XPath',
+    'print':'訊息','check_file_downloaded':'','compare_eq':'變數A',
+    'pause':'','end_check_presence_to_continue':'',
+  },
+  p2: {
+    'open':'URL','pause':'0-9','type':'値','dropdown':'選項','press':'按鍵',
+    'assert_text':'預期文字','assert_attribute_value':'屬性名','assert_class':'class名',
+    'get_text':'變數','get_attribute_value':'變數','compare_eq':'變數B',
+    'check_file_downloaded':'檔名',
+    'click':'','present':'','visible':'','not_present':'','not_visible':'','print':'',
+    'end_check_presence_to_continue':'',
+    'check_presence_to_continue':'',
+  },
+};
+
+function renderAll() {
+  const body = document.getElementById('stepBody');
+  const empty = document.getElementById('emptyState');
+  // Remove all step rows
+  body.querySelectorAll('.step-tr').forEach(el => el.remove());
+
+  if (steps.length === 0) {
+    empty.style.display = 'block';
+    document.getElementById('rowCount').textContent = '0 行';
+    return;
+  }
+  empty.style.display = 'none';
+  document.getElementById('rowCount').textContent = steps.length + ' 行';
+
+  let blockDepth = 0;
+  const blockDepths = new Map();
+  steps.forEach((step, i) => {
+    const a = step.a || '';
+    if (a === 'check_presence_to_continue') blockDepth++;
+    blockDepths.set(i, blockDepth);
+    if (a === 'end_check_presence_to_continue') blockDepth = Math.max(0, blockDepth - 1);
+  });
+
+  const unmatchedCheck = new Set();
+  const blockStack = [];
+  steps.forEach((step, i) => {
+    if (step.a === 'check_presence_to_continue') blockStack.push(i);
+    else if (step.a === 'end_check_presence_to_continue') { if (blockStack.length) blockStack.pop(); }
+  });
+  blockStack.forEach(i => unmatchedCheck.add(i));
+
+  const actColors = {
+    'open':'#059669','pause':'#059669','click':'#7c3aed','type':'#7c3aed','dropdown':'#7c3aed','press':'#7c3aed',
+    'present':'#059669','visible':'#059669','not_present':'#059669','not_visible':'#059669',
+    'assert_text':'#ea580c','assert_attribute_value':'#ea580c','assert_class':'#ea580c',
+    'get_text':'#8b5cf6','get_attribute_value':'#8b5cf6','compare_eq':'#8b5cf6',
+    'check_presence_to_continue':'#d97706','end_check_presence_to_continue':'#d97706',
+    'print':'#6b7280','check_file_downloaded':'#6b7280',
+  };
+
+  steps.forEach((step, i) => {
+    const a = step.a || '';
+    const bd = blockDepths.get(i) || 0;
+
+    const tr = document.createElement('tr');
+    tr.className = 'step-tr' + (step._error ? ' row-error' : '');
+    tr.draggable = true;
+    tr.dataset.idx = i;
+
+    // ── TD index ──
+    const tdIdx = document.createElement('td');
+    tdIdx.className = 'td-idx';
+    const num = document.createElement('span');
+    num.className = 'num' + (breakpoints.has(i) ? ' bp' : '');
+    num.textContent = i + 1;
+    num.onclick = () => {
+      if (breakpoints.has(i)) breakpoints.delete(i); else breakpoints.add(i);
+      num.classList.toggle('bp');
+    };
+    tdIdx.appendChild(num);
+    tr.appendChild(tdIdx);
+
+    // ── TD syntax ──
+    const tdSyn = document.createElement('td');
+    tdSyn.className = 'td-syn' + (bd > 0 ? ' has-block' : '');
+    const grid = document.createElement('div');
+    grid.className = 'syn-grid';
+
+
+    const ph1 = (PH.p1[a] || (NEEDS_ELEMENT.includes(a) ? 'XPath' : ''));
+    const p1w = makeFieldWrap('p1', step, a, NEEDS_ELEMENT, ph1);
+    grid.appendChild(p1w);
+
+    if (a !== 'print') {
+      const c1 = document.createElement('span');
+      c1.className = 'comma'; c1.textContent = ',';
+      grid.appendChild(c1);
+
+      const ph2 = PH.p2[a] || '';
+      const p2w = makeFieldWrap('p2', step, a, NEEDS_VALUE, ph2);
+      if (NEEDS_NUMERIC.includes(a)) { const inp = p2w.querySelector('.fld'); inp.inputMode = 'numeric'; }
+      grid.appendChild(p2w);
+
+      const c2 = document.createElement('span');
+      c2.className = 'comma'; c2.textContent = ',';
+      grid.appendChild(c2);
+    }
+
+    // Action
+    if (a === '') {
+      const actInp = document.createElement('textarea');
+      actInp.className = 'fld';
+      actInp.rows = 1; actInp.placeholder = '動作';
+      actInp.style.cssText = 'font-size:12px;font-weight:600;text-align:right;min-height:28px;resize:none;overflow:hidden;padding:2px 4px;font-family:var(--mono);border:2px solid var(--border);border-radius:4px;background:var(--surface)';
+      const grow = () => { actInp.style.height = 'auto'; actInp.style.height = Math.max(actInp.scrollHeight, 28) + 'px'; };
+      actInp.oninput = () => { step.a = actInp.value; grow(); };
+      grow();
+      grid.appendChild(actInp);
+    } else {
+      const actLbl = document.createElement('span');
+      actLbl.className = 'act-lbl';
+      actLbl.textContent = a;
+      actLbl.style.color = actColors[a] || '#6b7280';
+      grid.appendChild(actLbl);
+    }
+
+    const del = document.createElement('button');
+    del.className = 'del-btn'; del.textContent = '✕';
+    del.onclick = () => { steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); };
+    grid.appendChild(del);
+
+    tdSyn.appendChild(grid);
+    tr.appendChild(tdSyn);
+
+    // ── TD semantic ──
+    const tdSem = document.createElement('td');
+    tdSem.className = 'td-sem';
+    const semSpan = document.createElement('span');
+    semSpan.className = 'sem-cell';
+    if (step._error) {
+      semSpan.innerHTML = `<span style="color:var(--danger);font-weight:600">⚠ 無法識別的操作: ${esc(a)}</span>`;
+    } else if (unmatchedCheck.has(i)) {
+      semSpan.innerHTML = '<span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
+      semSpan.title = '此 check_presence 沒有對應的 end_check_presence_to_continue';
+    } else if (a === '') {
+      semSpan.textContent = '自定義指令';
+    } else if (SEM[a]) {
+      semSpan.innerHTML = SEM[a].desc(step.p1, step.p2);
+    } else {
+      semSpan.innerHTML = `<span class="sem-hl">${esc(a)}</span> p1=<span class="sem-val ${step.p1?'filled':'empty'}">${esc(step.p1)||'∅'}</span> p2=<span class="sem-val ${step.p2?'filled':'empty'}">${esc(step.p2)||'∅'}</span>`;
+    }
+    tdSem.appendChild(semSpan);
+    tr.appendChild(tdSem);
+
+    body.appendChild(tr);
+  });
+
+  updateSelectedVisual();
+}
+
+function getValidator(a, cls) {
+  const actionVal = VALIDATORS[a];
+  if (actionVal && actionVal[cls]) return actionVal[cls];
+  if (cls === 'p1' && XPATH_ACTIONS.includes(a)) return XPATH_VALIDATOR;
+  return null;
+}
+
+function syncBadge(wrap) {
+  const inp = wrap.querySelector('.fld');
+  const badge = wrap.querySelector('.fld-badge');
+  if (inp && badge) badge.classList.toggle('danger', inp.classList.contains('danger'));
+}
+
+function validateField(inp, a, cls) {
+  const vfn = getValidator(a, cls);
+  if (!vfn || !inp.value) return true;
+  const result = vfn(inp.value);
+  if (result === '') {
+    inp.classList.add('danger');
+    return false;
+  }
+  inp.classList.remove('danger');
+  return true;
+}
+
+function makeFieldWrap(cls, step, a, needsList, placeholder) {
+  const wrap = document.createElement('div');
+  wrap.className = 'fld-wrap ' + cls;
+  if (step[cls]) wrap.classList.add('has-value');
+
+  const badge = document.createElement('div');
+  badge.className = 'fld-badge';
+  badge.textContent = step[cls] || placeholder;
+  badge.onclick = () => { const inp = wrap.querySelector('.fld'); if (inp) { inp.focus(); inp.select(); } };
+  wrap.appendChild(badge);
+
+  const inp = document.createElement('textarea');
+  inp.className = 'fld';
+  inp.value = step[cls];
+  inp.placeholder = placeholder;
+  inp.rows = 1;
+  inp.readOnly = a !== '' && !needsList.includes(a);
+  if (inp.readOnly) wrap.classList.add('fld-ro');
+  if (a !== '' && needsList.includes(a) && !step[cls]) inp.classList.add('danger');
+  syncBadge(wrap);
+  const autoGrow = () => {
+    const hidden = inp.offsetParent === null;
+    if (hidden) { inp.style.visibility = 'hidden'; inp.style.display = 'block'; }
+    inp.style.height = 'auto';
+    inp.style.height = Math.max(inp.scrollHeight, 28) + 'px';
+    if (hidden) { inp.style.display = ''; inp.style.visibility = ''; }
+  };
+  const doUpdate = () => {
+    step[cls] = inp.value;
+    isDirty = true;
+    autoGrow();
+    if (inp.value) {
+      inp.classList.remove('danger');
+      wrap.classList.add('has-value');
+      badge.textContent = inp.value;
+      validateField(inp, a, cls);
+      syncBadge(wrap);
+    } else {
+      wrap.classList.remove('has-value');
+      badge.textContent = placeholder;
+      if (a !== '' && needsList.includes(a)) inp.classList.add('danger');
+      syncBadge(wrap);
+    }
+  };
+  inp.oninput = doUpdate;
+  inp.onblur = () => {
+    if (a !== '' && needsList.includes(a) && !step[cls]) inp.classList.add('danger');
+    else if (step[cls]) validateField(inp, a, cls);
+    syncBadge(wrap);
+  };
+  inp.ondblclick = async () => {
+    if (inp.readOnly) return;
+    try {
+      const t = await navigator.clipboard.readText();
+      inp.value = t;
+      step[cls] = t;
+      isDirty = true;
+      doUpdate();
+      showToast('已貼上');
+    } catch(e) {
+      showToast('無法讀取剪貼簿');
+    }
+  };
+  wrap.appendChild(inp);
+  setTimeout(autoGrow, 0); // init height for existing value
+
+  return wrap;
+}
+
+function updateBadge(wrap, val) {
+  const badge = wrap.querySelector('.fld-badge');
+  const inp = wrap.querySelector('.fld');
+  if (badge) badge.textContent = val || inp?.placeholder || '—';
+  if (val) wrap.classList.add('has-value');
+  else wrap.classList.remove('has-value');
+}
+
+// ============ Validate ============
+function hasValidationErrors() {
+  if (!testCases.length) return '沒有 Test Case';
+  for (const tc of testCases) {
+    if (!tc.name.trim()) return '請填寫所有 Test Case 名稱';
+    for (let i = 0; i < tc.steps.length; i++) {
+      const s = tc.steps[i]; const a = s.a;
+      if (NEEDS_ELEMENT.includes(a) && !s.p1) return `TC「${tc.name}」步驟 ${i+1}（${a}）：缺少路徑`;
+      if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value') return `TC「${tc.name}」步驟 ${i+1}（${a}）：缺少値`;
+      if (a === 'pause' && s.p2 && !/^\d*$/.test(s.p2)) return `TC「${tc.name}」步驟 ${i+1}（pause）：秒數須為數字`;
+      if (a === 'open' && s.p2 && !/^https?:\/\//.test(s.p2) && !s.p2.startsWith('/')) return `TC「${tc.name}」步驟 ${i+1}（open）：URL 格式不正確`;
+      if (XPATH_ACTIONS.includes(a) && s.p1 && !/^(\/\/?|\(|\.\/)/.test(s.p1)) return `TC「${tc.name}」步驟 ${i+1}（${a}）：XPath 格式不正確`;
+    }
+  }
+  return null;
+}
+
+// ============ Save ============
+function saveCSV() {
+  if (currentIdx >= 0) testCases[currentIdx].name = document.getElementById('tcName').value.trim();
+  const err = hasValidationErrors();
+  if (err) { showToast(err); return; }
+  const lines = testCases.map(tc => {
+    const cells = [tc.name.trim()];
+    for (const s of tc.steps) { cells.push(s.p1||'', s.p2||'', s.a||''); }
+    return cells.map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
+  });
+  const blob = new Blob([lines.join('\r\n')+'\r\n'], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = currentFileName || 'test_cases';
+  a.href = url; a.download = fname+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  isDirty = false;
+  showToast('已儲存 CSV');
+}
+
+// ============ Clear ============
+function clearAll() {
+  if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
+  testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
+  document.getElementById('tcName').value = '';
+  currentFileName = '';
+  document.getElementById('fileInfoHeader').textContent = '未載入';
+  isDirty = false;
+  exitConfirmed = false;
+  renderAll();
+  renderTcList();
+}
+
+// ============ Copy TC ============
+function copyTC() {
+  if (currentIdx < 0) { showToast('沒有 Test Case'); return; }
+  const tc = testCases[currentIdx];
+  const cells = [tc.name || 'Untitled'];
+  for (const s of tc.steps) { cells.push(s.p1||'', s.p2||'', s.a||''); }
+  const csvLine = cells.map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
+  navigator.clipboard.writeText(csvLine).then(() => {
+    showToast('已複製 testcase 到剪貼簿');
+  }).catch(() => {
+    showToast('複製失敗');
+  });
+}
+
+// ============ TC Explorer ============
+function renderTcList() {
+  const list = document.getElementById('tcList');
+  if (!list) return;
+  list.innerHTML = '';
+  testCases.forEach((tc, i) => {
+    const item = document.createElement('div');
+    item.className = 'tc-list-item' + (i === currentIdx ? ' active' : '');
+    item.textContent = tc.name || `TC ${i+1}`;
+    item.onclick = () => switchTC(i);
+    list.appendChild(item);
+  });
+}
+function switchTC(idx) {
+  if (idx === currentIdx || idx < 0 || idx >= testCases.length) return;
+  if (currentIdx >= 0) testCases[currentIdx].name = document.getElementById('tcName').value;
+  currentIdx = idx;
+  document.getElementById('tcName').value = testCases[idx].name || '';
+  steps = testCases[idx].steps;
+  breakpoints = testCases[idx].breakpoints;
+  selectedRowIdx = -1;
+  renderAll();
+  renderTcList();
+}
+
+// ============ Hover matching ============
+let hoverTimer = null;
+function applyHoverMatch(val) {
+  if (!val) { clearHoverMatch(); return; }
+  clearTimeout(hoverTimer);
+  document.querySelectorAll('.fld-wrap.p1 .fld').forEach(el => {
+    el.classList.toggle('match-hover', el.value === val);
+  });
+}
+function clearHoverMatch() {
+  document.querySelectorAll('.fld.p1.match-hover').forEach(el => el.classList.remove('match-hover'));
+}
+
+// ============ Drag & Drop ============
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.addEventListener('dragover', e => {
+    if (e.target.closest('#stepBody')) return;
+    e.preventDefault();
+  });
+  document.body.addEventListener('drop', e => {
+    if (e.target.closest('#stepBody')) return;
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length && files[0].name.endsWith('.csv')) {
+      const inp = document.getElementById('fileInput');
+      const dt = new DataTransfer(); dt.items.add(files[0]);
+      inp.files = dt.files; inp.dispatchEvent(new Event('change'));
+    }
+  });
+});
+
+// ============ Toast ============
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
