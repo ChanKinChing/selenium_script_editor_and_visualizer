@@ -540,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Drag & drop step reordering
   const body = document.getElementById('stepBody');
   body.addEventListener('dragstart', e => {
+    if (isReadOnly) return;
     const tr = e.target.closest('.step-tr'); if (!tr) return;
     if (e.target.closest('.fld, .del-btn, .td-idx, .sem-val, .sem-path, .sem-hl')) return;
     dragSrcIdx = parseInt(tr.dataset.idx);
@@ -891,7 +892,7 @@ function renderAll() {
 
     const tr = document.createElement('tr');
     tr.className = 'step-tr' + (step._error ? ' row-error' : '');
-    tr.draggable = true;
+    tr.draggable = !isReadOnly;
     tr.dataset.idx = i;
 
     // ── TD index ──
