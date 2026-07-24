@@ -159,6 +159,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 }
 .step-tr:hover .del-btn{opacity:1}
 .syn-grid .del-btn:hover{color:var(--danger);background:#fef2f2;opacity:1}
+.syn-grid--print{grid-template-columns:1fr 16px 1fr 20px}
 .syn-grid .act-lbl{
   font-family:var(--mono);font-size:12px;font-weight:600;
   padding:2px 4px;border-radius:3px;white-space:nowrap;text-align:right;
@@ -900,7 +901,7 @@ function renderAll() {
     const tdSyn = document.createElement('td');
     tdSyn.className = 'td-syn' + (bd > 0 ? ' has-block' : '');
     const grid = document.createElement('div');
-    grid.className = 'syn-grid';
+    grid.className = 'syn-grid' + (a === 'print' ? ' syn-grid--print' : '');
 
 
     const ph1 = (PH.p1[a] || (NEEDS_ELEMENT.includes(a) ? 'XPath' : ''));
