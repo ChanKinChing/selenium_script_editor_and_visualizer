@@ -854,10 +854,14 @@ function renderAll() {
   });
 
   const unmatchedCheck = new Set();
+  const unmatchedEnd = new Set();
   const blockStack = [];
   steps.forEach((step, i) => {
     if (step.a === 'check_presence_to_continue') blockStack.push(i);
-    else if (step.a === 'end_check_presence_to_continue') { if (blockStack.length) blockStack.pop(); }
+    else if (step.a === 'end_check_presence_to_continue') {
+      if (blockStack.length) blockStack.pop();
+      else unmatchedEnd.add(i);
+    }
   });
   blockStack.forEach(i => unmatchedCheck.add(i));
 
@@ -960,6 +964,9 @@ function renderAll() {
     } else if (unmatchedCheck.has(i)) {
       semSpan.innerHTML = '<span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
       semSpan.title = '此 check_presence 沒有對應的 end_check_presence_to_continue';
+    } else if (unmatchedEnd.has(i)) {
+      semSpan.innerHTML = '<span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 check_presence_to_continue</span>';
+      semSpan.title = '此 end_check 沒有對應的 check_presence_to_continue';
     } else if (a === '') {
       semSpan.textContent = '自定義指令';
     } else if (SEM[a]) {
