@@ -895,7 +895,6 @@ function renderAll() {
     tr.className = 'step-tr' + (step._error ? ' row-error' : '');
     tr.draggable = true;
     tr.dataset.idx = i;
-    tr.dataset.a = a;
 
     // ── TD index ──
     const tdIdx = document.createElement('td');
@@ -957,16 +956,6 @@ function renderAll() {
     actLbl.className = 'act-lbl';
     actLbl.textContent = a;
     actLbl.style.color = actColors[a] || '#6b7280';
-    actLbl.addEventListener('mouseenter', () => {
-      body.querySelectorAll('.step-tr').forEach(r => {
-        if (r.dataset.a === a) {
-          r.querySelectorAll('.act-lbl').forEach(l => { l.style.background = '#d1d5db'; });
-        }
-      });
-    });
-    actLbl.addEventListener('mouseleave', () => {
-      body.querySelectorAll('.act-lbl').forEach(l => { l.style.background = ''; });
-    });
     grid.appendChild(actLbl);
     }
 
