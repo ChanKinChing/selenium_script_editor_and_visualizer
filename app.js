@@ -148,8 +148,8 @@ function takeSnapshot() {
     currentIdx
   };
 }
-function pushSnapshot() {
-  undoStack.push(takeSnapshot());
+function pushSnapshot(action) {
+  undoStack.push({snapshot: takeSnapshot(), action: action || ''});
   if (undoStack.length > MAX_UNDO) undoStack.shift();
   redoStack = [];
   updateUndoButtons();
@@ -180,13 +180,17 @@ function restoreSnapshot(snap) {
 }
 function undo() {
   if (!undoStack.length) return;
-  redoStack.push(takeSnapshot());
-  restoreSnapshot(undoStack.pop());
+  const entry = undoStack.pop();
+  redoStack.push({snapshot: takeSnapshot(), action: entry.action});
+  restoreSnapshot(entry.snapshot);
+  showToast('已復原: ' + entry.action);
 }
 function redo() {
   if (!redoStack.length) return;
-  undoStack.push(takeSnapshot());
-  restoreSnapshot(redoStack.pop());
+  const entry = redoStack.pop();
+  pushSnapshot(entry.action);
+  restoreSnapshot(entry.snapshot);
+  showToast('已重做: ' + entry.action);
 }
 
 // ============ Help Modal ============
@@ -262,9 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.key === 'Delete') {
       const active = document.activeElement;
-      if (active && !active.closest('.steps-col.btns') && !active.closest('header')) {
+      if (active && !active.closest('.steps-col.btns') && !active.closest('header') && !active.closest('.fld')) {
         const row = active.closest('.step-tr');
-        if (row) { pushSnapshot(); const action = steps[parseInt(row.dataset.idx)].a||'自訂'; steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); showToast(`已刪除步驟 ${parseInt(row.dataset.idx)+1} (${action})`); }
+        if (row) { const ri = parseInt(row.dataset.idx); const act = steps[ri].a||'自訂'; pushSnapshot('刪除步驟' + (ri+1) + '(' + act + ')'); steps.splice(ri, 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); showToast(`已刪除步驟 ${ri+1} (${act})`); }
       }
     }
   });
@@ -347,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     let t = parseInt(tr.dataset.idx);
     if (dragSrcIdx === t) { dragSrcIdx = -1; return; }
-    pushSnapshot();
+    pushSnapshot('移動步驟');
     const [m] = steps.splice(dragSrcIdx, 1);
     if (t > dragSrcIdx) t--;
     steps.splice(t, 0, m);
@@ -430,7 +434,7 @@ function renderButtons() {
       btn.className = 'key-btn' + (item.cls ? ' ' + item.cls : '');
       const iconName = BTN_ICONS[item.action];
       const iconHtml = iconName ? `<span class="material-symbols-outlined">${iconName}</span>` : '';
-      btn.innerHTML = `<span class="kb-act">${item.action}</span>${iconHtml ? '<span class="kb-icon">'+iconHtml+'</span>' : ''}<span class="kb-desc">${item.desc}</span>`;
+      btn.innerHTML = `<span class="kb-grid">${iconHtml ? '<span class="kb-icon-col">'+iconHtml+'</span>' : ''}<span class="kb-text-col"><span class="kb-act">${item.action}</span><span class="kb-desc">${item.desc}</span></span></span>`;
       if (item.extra) {
         btn.onclick = () => addStep(item.extra.val, item.extra.a);
       } else {
@@ -462,7 +466,7 @@ function parseCSVLine(line) {
 function loadCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
-  pushSnapshot();
+  pushSnapshot('載入CSV');
   currentFileName = file.name.replace(/\.csv$/i, '');
   const reader = new FileReader();
   reader.onload = function(ev) {
@@ -515,7 +519,6 @@ function loadCSV(e) {
 
 // ============ Actions ============
 function addStep(param2, actionOverride) {
-  pushSnapshot();
   if (currentIdx < 0) {
     const name = 'TC ' + (testCases.length + 1);
     testCases.push({ name, steps: [], breakpoints: new Set() });
@@ -538,6 +541,7 @@ function addStep(param2, actionOverride) {
     action = '';
     val = '';
   }
+  pushSnapshot('新增步驟 ' + (action||'自訂'));
   const newStep = { p1: '', p2: val, a: action };
   let idx;
   if (selectedRowIdx >= 0) {
@@ -713,7 +717,7 @@ function renderAll() {
     const bd = blockDepths.get(i) || 0;
 
     const tr = document.createElement('tr');
-    tr.className = 'step-tr' + (step._error ? ' row-error' : '');
+    tr.className = 'step-tr' + (stepHasError(step) ? ' row-error' : '');
     tr.draggable = !isReadOnly;
     tr.dataset.idx = i;
 
@@ -725,7 +729,7 @@ function renderAll() {
     num.textContent = i + 1;
     num.title = '左鍵: 標記斷點 | 右鍵: 複製該行';
     num.onclick = () => {
-      pushSnapshot();
+      pushSnapshot('切換斷點');
       if (breakpoints.has(i)) breakpoints.delete(i); else breakpoints.add(i);
       num.classList.toggle('bp');
     };
@@ -783,7 +787,7 @@ function renderAll() {
 
     const del = document.createElement('button');
     del.className = 'del-btn'; del.textContent = '✕';
-    del.onclick = () => { pushSnapshot(); const action = steps[i].a||'自訂'; steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); showToast(`已刪除步驟 ${i+1} (${action})`); };
+    del.onclick = () => { const act = steps[i].a||'自訂'; pushSnapshot('刪除步驟' + (i+1) + '(' + act + ')'); steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); showToast(`已刪除步驟 ${i+1} (${act})`); };
     grid.appendChild(del);
 
     tdSyn.appendChild(grid);
@@ -863,7 +867,7 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   inp.readOnly = a !== '' && !needsList.includes(a);
   if (inp.readOnly) wrap.classList.add('fld-ro');
   inp.addEventListener('focus', function() {
-    if (!this.dataset.snap) { pushSnapshot(); this.dataset.snap = '1'; }
+    if (!this.dataset.snap) { pushSnapshot('編輯欄位'); this.dataset.snap = '1'; }
   });
   inp.addEventListener('blur', function() {
     this.dataset.snap = '';
@@ -970,7 +974,7 @@ function saveCSV() {
 // ============ Clear ============
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
-  pushSnapshot();
+  pushSnapshot('清空');
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
   currentFileName = 'Test_case';
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
@@ -1009,7 +1013,7 @@ function renderTcList() {
       inp.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
           e.preventDefault();
-          pushSnapshot();
+          pushSnapshot('重新命名TC');
           testCases[i].name = this.value.trim() || `TC ${i+1}`;
           exitRenameMode();
         }
@@ -1023,11 +1027,44 @@ function renderTcList() {
     } else {
       const item = document.createElement('div');
       item.className = 'tc-list-item' + (i === currentIdx ? ' active' : '');
-      item.textContent = tc.name || `TC ${i+1}`;
-      item.onclick = () => switchTC(i);
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = tc.name || `TC ${i+1}`;
+      nameSpan.style.flex = '1';
+      nameSpan.onclick = () => switchTC(i);
+      item.appendChild(nameSpan);
+      if (hasStepErrors(tc)) {
+        const dot = document.createElement('span');
+        dot.className = 'tc-error-dot';
+        dot.title = '此 Test Case 有錯誤步驟';
+        dot.onclick = e => { e.stopPropagation(); goToErrorTC(i); };
+        item.appendChild(dot);
+      }
       list.appendChild(item);
     }
   });
+}
+function goToErrorTC(idx) {
+  if (currentIdx !== idx) switchTC(idx);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const errRow = document.querySelector('.step-tr.row-error');
+    if (errRow) {
+      errRow.scrollIntoView({block:'center',behavior:'smooth'});
+      errRow.classList.add('error-flash');
+    }
+  }));
+}
+function stepHasError(s) {
+  if (s._error) return true;
+  const a = s.a || '';
+  if (NEEDS_ELEMENT.includes(a) && !s.p1) return true;
+  if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value') return true;
+  if (a === 'pause' && s.p2 && !/^\d*$/.test(s.p2)) return true;
+  if (a === 'open' && s.p2 && !/^https?:\/\//.test(s.p2) && !s.p2.startsWith('/')) return true;
+  if (XPATH_ACTIONS.includes(a) && s.p1 && !/^(\/\/?|\(|\.\/)/.test(s.p1)) return true;
+  return false;
+}
+function hasStepErrors(tc) {
+  return tc.steps.some(stepHasError);
 }
 function switchTC(idx) {
   if (idx === currentIdx || idx < 0 || idx >= testCases.length) return;

@@ -58,14 +58,12 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 /* ── Steps area (3-column) ── */
 .steps-area{
-  flex:1;overflow-y:auto;display:flex;position:relative;
+  flex:1;display:flex;position:relative;overflow:hidden;
 }
 
 /* ── Left button column ── */
 .steps-col.btns{
   width:25%;flex-shrink:0;
-  position:sticky;top:0;
-  height:100vh;overflow:hidden;
   background:var(--surface);border-right:1px solid var(--border);
   padding:20px 20px 8px;display:flex;flex-direction:column;gap:4px;
 }
@@ -88,9 +86,13 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .file-edit-btn{background:none;border:none;cursor:pointer;padding:1px 2px;border-radius:3px;color:var(--text-muted);display:flex;align-items:center}
 .file-edit-btn:hover{background:var(--key-hover);color:var(--text)}
 .tc-list-input{font:12px/1.2 var(--mono);padding:2px 4px;border:1px solid var(--primary);border-radius:3px;outline:none;width:100%;box-sizing:border-box;margin:0}
-.tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s}
+.tc-list-item{font-size:12px;font-family:var(--mono);padding:4px 6px;cursor:pointer;border-radius:3px;color:var(--text);transition:background .12s;display:flex;align-items:center;justify-content:space-between}
 .tc-list-item:hover{background:var(--key-hover)}
 .tc-list-item.active{background:var(--primary);color:#fff}
+.tc-error-dot{width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0;cursor:pointer;transition:transform .15s;margin-left:auto}
+.tc-error-dot:hover{transform:scale(1.3)}
+.error-flash{animation:errFlash .5s ease 3}
+@keyframes errFlash{50%{outline:2px solid #ef4444;outline-offset:-2px}}
 .steps-col.btns .btn-group{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:3px}
 .steps-col.btns .btn-group-label{font-size:8px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;padding:1px 3px;grid-column:1 / -1}
 .steps-col.btns .key-btn{
@@ -105,18 +107,20 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .steps-col.btns .key-btn.block-key{}
 .steps-col.btns .key-btn.custom-btn{background:#dbeafe;border-color:#93c5fd}
 .steps-col.btns .key-btn.custom-btn:hover{background:#93c5fd;color:#fff}
+.kb-grid{display:grid;grid-template-columns:auto 1fr;gap:4px;width:100%;align-items:center;flex:1}
+.kb-icon-col{grid-column:1;grid-row:1/3;display:flex;align-items:center;justify-content:center}
+.kb-icon-col .material-symbols-outlined{font-size:18px}
+.kb-text-col{grid-column:2;display:flex;flex-direction:column;min-width:0}
 .kb-act{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:-0.3px}
-.kb-icon{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center}
-.kb-icon .material-symbols-outlined{font-size:20px}
-.btn .material-symbols-outlined{font-size:16px}
-.file-input-wrap .material-symbols-outlined{font-size:16px}
 .kb-desc{font-family:var(--font);font-size:9px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn .material-symbols-outlined{font-size:16px;vertical-align:middle}
+.file-input-wrap .material-symbols-outlined{font-size:16px;vertical-align:middle}
 
 /* ── Middle column (table) ── */
 .steps-col.mid{
   flex:1;min-width:0;display:flex;flex-direction:column;
 }
-.mid-scroll{flex:1;padding:0 0 6px}
+.mid-scroll{flex:1;overflow-y:auto;padding:0}
 .step-table{width:100%;border-collapse:collapse;table-layout:fixed}
 
 /* Table header */
@@ -228,7 +232,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 .step-tr.selected td{background:#e0f2fe}
 .step-tr.selected:hover td{background:#bae6fd}
-.app-footer{height:30px;background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-muted);font-size:11px;flex-shrink:0}
+.app-footer{height:30px;background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-muted);font-size:11px;border-top:1px solid var(--border);box-sizing:border-box;flex-shrink:0}
 .app-footer span{margin:0 4px}
 .help-btn{width:28px;height:28px;background:var(--primary);color:#fff;border:none;border-radius:3px;font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
 .help-btn:hover{background:var(--primary-hover)}
