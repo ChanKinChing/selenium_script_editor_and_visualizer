@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const active = document.activeElement;
       if (active && !active.closest('.steps-col.btns') && !active.closest('header')) {
         const row = active.closest('.step-tr');
-        if (row) { pushSnapshot(); steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); }
+        if (row) { pushSnapshot(); const action = steps[parseInt(row.dataset.idx)].a||'自訂'; steps.splice(parseInt(row.dataset.idx), 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); showToast(`已刪除步驟 ${parseInt(row.dataset.idx)+1} (${action})`); }
       }
     }
   });
@@ -276,8 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set initial padding-top on midScroll and btnCol for fixed header
   midScroll.style.paddingTop = header.offsetHeight + 'px';
   btnCol.style.paddingTop = header.offsetHeight + 'px';
-  midScroll.style.paddingBottom = document.querySelector('.app-footer').offsetHeight + 'px';
-  btnCol.style.paddingBottom = document.querySelector('.app-footer').offsetHeight + 'px';
 
   // Hover matching on syntax fields
   const scrollArea = document.getElementById('stepsArea');
@@ -354,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (t > dragSrcIdx) t--;
     steps.splice(t, 0, m);
     isDirty = true; renderAll();
+    showToast(`已移動步驟`);
     requestAnimationFrame(() => {
       const row = body.querySelector(`[data-idx="${t}"]`);
       if (row) row.classList.add('drop-flash');
@@ -784,7 +783,7 @@ function renderAll() {
 
     const del = document.createElement('button');
     del.className = 'del-btn'; del.textContent = '✕';
-    del.onclick = () => { pushSnapshot(); steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); };
+    del.onclick = () => { pushSnapshot(); const action = steps[i].a||'自訂'; steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); showToast(`已刪除步驟 ${i+1} (${action})`); };
     grid.appendChild(del);
 
     tdSyn.appendChild(grid);

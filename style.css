@@ -227,7 +227,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 
 .step-tr.selected td{background:#e0f2fe}
 .step-tr.selected:hover td{background:#bae6fd}
-.app-footer{height:30px;background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-muted);font-size:11px;position:fixed;bottom:0;left:0;right:0;z-index:100}
+.app-footer{height:30px;background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-muted);font-size:11px;flex-shrink:0}
 .app-footer span{margin:0 4px}
 .help-btn{width:28px;height:28px;background:var(--primary);color:#fff;border:none;border-radius:3px;font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
 .help-btn:hover{background:var(--primary-hover)}
@@ -266,7 +266,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .toast{
   position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(20px);
   background:#1f2937;color:#fff;padding:8px 18px;border-radius:8px;
-  font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;
+  font-size:15px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
