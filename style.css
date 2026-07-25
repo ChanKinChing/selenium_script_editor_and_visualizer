@@ -46,6 +46,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
   font-size:12px;white-space:nowrap;transition:all .12s;font-family:var(--font);
 }
 .btn:hover{background:var(--key-hover)}
+.btn:disabled{opacity:.35;cursor:default;pointer-events:none}
 .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
 .btn-primary:hover{background:var(--primary-hover)}
 .btn-import-csv{border-color:var(--primary);background:#fff}
@@ -231,6 +232,7 @@ header .status{font-size:12px;color:var(--text-muted);display:flex;gap:14px}
 .app-footer span{margin:0 4px}
 .help-btn{width:28px;height:28px;background:var(--primary);color:#fff;border:none;border-radius:3px;font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
 .help-btn:hover{background:var(--primary-hover)}
+kbd{background:#e5e7eb;border:1px solid #d1d5db;border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:12px}
 .step-tr{cursor:grab}
 .step-tr:active{cursor:grabbing}
 .step-tr.drag-over td{border-top:2px solid var(--primary)}
