@@ -44,8 +44,8 @@ const BTN_GROUPS = [
   {
     label: '條件區塊',
     items: [
-      { action: 'check_presence_to_continue', fmt: ',XPath,check_presence', labels: ['路徑'], desc: '條件區塊', cls: 'block-key' },
-      { action: 'end_check_presence_to_continue', fmt: ',,end_check', labels: [], desc: '結束區塊', cls: 'block-key' },
+      { action: 'check_presence_to_continue', extra: { a: 'check_presence_to_continue', val: 'present' }, desc: '條件區塊', cls: 'block-key' },
+      { action: 'end_check_presence_to_continue', desc: '結束區塊', cls: 'block-key' },
     ]
   },
   {
@@ -483,7 +483,7 @@ function loadCSV(e) {
         const p1 = cells[i] || '';
         const p2 = cells[i+1] || '';
         const a = cells[i+2] || '';
-        if (p2 && a && ALL_ACTIONS.includes(p2) && ALL_ACTIONS.includes(a)) {
+        if (p2 && a && ALL_ACTIONS.includes(p2) && ALL_ACTIONS.includes(a) && !PH.p2[a]) {
           fixed.push(p1, '', p2);
           fixed.push('', '', a);
         } else {
@@ -625,14 +625,14 @@ const SEM = {
   'compare_eq':{icon:'⚖️', desc:(p1,p2)=>`比較 <span class="sem-val ${p1?'filled':'empty'}">${esc(p1)||'變數A'}</span> = <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'變數B'}</span>`},
   'check_presence_to_continue':{icon:'🔀', desc:(p1,p2)=>`若 <span class="sem-path ${p1?'filled':'empty'}">${esc(p1)||'路徑'}</span> 存在 → 執行以下區塊`},
   'end_check_presence_to_continue':{icon:'🔚', desc:()=>`結束條件區塊`},
-  'print':{icon:'📢', desc:(p1)=>`輸出日誌: <span class="sem-val ${p1?'filled':'empty'}">${esc(p1)||'訊息'}</span>`},
+  'print':{icon:'📢', desc:(p1,p2)=>`輸出日誌: <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'訊息'}</span>`},
   'check_file_downloaded':{icon:'📎', desc:(p1,p2)=>`確認下載: <span class="sem-val ${p2?'filled':'empty'}">${esc(p2)||'檔名'}</span>`},
 };
 
 const NEEDS_ELEMENT = ['click','type','dropdown','press','present','visible','not_present','not_visible',
-  'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','check_presence_to_continue','print'];
+  'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','check_presence_to_continue'];
 const NEEDS_VALUE = ['open','type','dropdown','press','assert_text','assert_attribute_value','assert_class',
-  'get_text','get_attribute_value','compare_eq','check_file_downloaded','pause'];
+  'get_text','get_attribute_value','compare_eq','check_file_downloaded','pause','check_presence_to_continue','print'];
 const NEEDS_NUMERIC = ['pause'];
 const ALL_ACTIONS = ['open','pause','click','type','dropdown','press','present','visible','not_present','not_visible',
   'assert_text','assert_attribute_value','assert_class','get_text','get_attribute_value','compare_eq',
@@ -654,7 +654,7 @@ const PH = {
     'present':'XPath','visible':'XPath','not_present':'XPath','not_visible':'XPath',
     'assert_text':'XPath','assert_attribute_value':'XPath','assert_class':'XPath',
     'get_text':'XPath','get_attribute_value':'XPath','check_presence_to_continue':'XPath',
-    'print':'訊息','check_file_downloaded':'','compare_eq':'變數A',
+    'print':'','check_file_downloaded':'','compare_eq':'變數A',
     'pause':'','end_check_presence_to_continue':'',
   },
   p2: {
@@ -662,9 +662,9 @@ const PH = {
     'assert_text':'預期文字','assert_attribute_value':'屬性名','assert_class':'class名',
     'get_text':'變數','get_attribute_value':'變數','compare_eq':'變數B',
     'check_file_downloaded':'檔名',
-    'click':'','present':'','visible':'','not_present':'','not_visible':'','print':'',
+    'click':'','present':'','visible':'','not_present':'','not_visible':'','print':'訊息',
     'end_check_presence_to_continue':'',
-    'check_presence_to_continue':'',
+    'check_presence_to_continue':'present',
   },
 };
 
@@ -745,14 +745,14 @@ function renderAll() {
     const tdSyn = document.createElement('td');
     tdSyn.className = 'td-syn' + (bd > 0 ? ' has-block' : '');
     const grid = document.createElement('div');
-    grid.className = 'syn-grid' + (a === 'print' ? ' syn-grid--print' : '');
+    grid.className = 'syn-grid';
 
 
     const ph1 = (PH.p1[a] || (NEEDS_ELEMENT.includes(a) ? 'XPath' : ''));
     const p1w = makeFieldWrap('p1', step, a, NEEDS_ELEMENT, ph1);
     grid.appendChild(p1w);
 
-    if (a !== 'print') {
+    {
       const c1 = document.createElement('span');
       c1.className = 'comma'; c1.textContent = ',';
       grid.appendChild(c1);
@@ -875,7 +875,7 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   inp.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
   });
-  if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !(a === 'assert_text' && cls === 'p2') && !step[cls]) inp.classList.add('danger');
+  if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !((a === 'assert_text' || a === 'dropdown') && cls === 'p2') && !step[cls]) inp.classList.add('danger');
   syncBadge(wrap);
   const autoGrow = () => {
     const hidden = inp.offsetParent === null;
@@ -897,13 +897,13 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
     } else {
       wrap.classList.remove('has-value');
       badge.textContent = placeholder;
-      if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !(a === 'assert_text' && cls === 'p2')) inp.classList.add('danger');
+      if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !((a === 'assert_text' || a === 'dropdown') && cls === 'p2')) inp.classList.add('danger');
       syncBadge(wrap);
     }
   };
   inp.oninput = doUpdate;
   inp.onblur = () => {
-    if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !(a === 'assert_text' && cls === 'p2') && !step[cls]) inp.classList.add('danger');
+  if (a !== '' && needsList.includes(a) && !(a === 'assert_attribute_value' && cls === 'p2') && !((a === 'assert_text' || a === 'dropdown') && cls === 'p2') && !step[cls]) inp.classList.add('danger');
     else if (step[cls]) validateField(inp, a, cls);
     syncBadge(wrap);
   };
@@ -942,7 +942,7 @@ function hasValidationErrors() {
     for (let i = 0; i < tc.steps.length; i++) {
       const s = tc.steps[i]; const a = s.a;
       if (NEEDS_ELEMENT.includes(a) && !s.p1) return `TC「${tc.name}」步驟 ${i+1}（${a}）：缺少路徑`;
-      if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value') return `TC「${tc.name}」步驟 ${i+1}（${a}）：缺少値`;
+      if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value' && a !== 'assert_text' && a !== 'dropdown') return `TC「${tc.name}」步驟 ${i+1}（${a}）：缺少値`;
       if (a === 'pause' && s.p2 && !/^\d*$/.test(s.p2)) return `TC「${tc.name}」步驟 ${i+1}（pause）：秒數須為數字`;
       if (a === 'open' && s.p2 && !/^https?:\/\//.test(s.p2) && !s.p2.startsWith('/')) return `TC「${tc.name}」步驟 ${i+1}（open）：URL 格式不正確`;
       if (XPATH_ACTIONS.includes(a) && s.p1 && !/^(\/\/?|\(|\.\/)/.test(s.p1)) return `TC「${tc.name}」步驟 ${i+1}（${a}）：XPath 格式不正確`;
@@ -1057,7 +1057,7 @@ function stepHasError(s) {
   if (s._error) return true;
   const a = s.a || '';
   if (NEEDS_ELEMENT.includes(a) && !s.p1) return true;
-  if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value') return true;
+  if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value' && a !== 'assert_text' && a !== 'dropdown') return true;
   if (a === 'pause' && s.p2 && !/^\d*$/.test(s.p2)) return true;
   if (a === 'open' && s.p2 && !/^https?:\/\//.test(s.p2) && !s.p2.startsWith('/')) return true;
   if (XPATH_ACTIONS.includes(a) && s.p1 && !/^(\/\/?|\(|\.\/)/.test(s.p1)) return true;
