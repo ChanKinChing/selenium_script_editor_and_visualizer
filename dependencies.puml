@@ -1,0 +1,30 @@
+@startuml
+title Selenium CSV Data Dependencies
+
+skinparam backgroundColor #FEFEFE
+
+legend top
+  | <#FFCCCC> 明確值相依 (Explicit Value) |
+  | <#CCE5FF> 隱含計數相依 (Count-based) |
+endlegend
+
+rectangle "Login.csv" as Login
+rectangle "CASE_FOLLOWUP.csv" as CF
+rectangle "COMPENSATION.csv" as COMP
+rectangle "EVENT_ENQUIRY.csv" as EE
+rectangle "CASE_INBOUND.csv" as INB
+rectangle "FSD.csv" as FSD
+
+Login --> CF
+Login --> COMP
+Login --> EE
+Login --> INB
+Login --> FSD
+
+CF -[#FF6666]-> INB : mailItemNo
+CF -[#FF6666]-> COMP : caseNo
+
+CF -[#66AAFF]-> EE : event count
+COMP -[#66AAFF]-> FSD : record counts
+EE -[#66AAFF]-> FSD : event state changed
+@enduml

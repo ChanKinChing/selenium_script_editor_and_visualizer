@@ -238,6 +238,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renderTcList();
   });
+  document.getElementById('addTcBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    const name = 'TC ' + (testCases.length + 1);
+    pushSnapshot('新增 Test Case: ' + name);
+    testCases.push({ name, steps: [], breakpoints: new Set() });
+    currentIdx = testCases.length - 1;
+    steps = testCases[currentIdx].steps;
+    breakpoints = testCases[currentIdx].breakpoints;
+    selectedRowIdx = -1;
+    isDirty = true;
+    renderAll();
+    renderTcList();
+    showToast('已新增: ' + name);
+  });
   document.addEventListener('click', function(e) {
     if (!isRenaming) return;
     if (e.target.closest('.file-info-row') || e.target.closest('.tc-list')) return;
@@ -1032,6 +1046,30 @@ function renderTcList() {
       nameSpan.style.flex = '1';
       nameSpan.onclick = () => switchTC(i);
       item.appendChild(nameSpan);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'tc-del-btn';
+      delBtn.textContent = '✕';
+      delBtn.title = '刪除此 Test Case';
+      delBtn.onclick = function(e) {
+        e.stopPropagation();
+        if (testCases.length <= 1) { showToast('至少需要一個 Test Case'); return; }
+        const tcName = testCases[i].name || `TC ${i+1}`;
+        pushSnapshot('刪除 Test Case: ' + tcName);
+        testCases.splice(i, 1);
+        if (currentIdx >= testCases.length) currentIdx = testCases.length - 1;
+        if (currentIdx >= 0) {
+          steps = testCases[currentIdx].steps;
+          breakpoints = testCases[currentIdx].breakpoints;
+        } else {
+          steps = []; breakpoints = new Set();
+        }
+        selectedRowIdx = -1;
+        isDirty = true;
+        renderAll();
+        renderTcList();
+        showToast('已刪除: ' + tcName);
+      };
+      item.appendChild(delBtn);
       if (hasStepErrors(tc)) {
         const dot = document.createElement('span');
         dot.className = 'tc-error-dot';
