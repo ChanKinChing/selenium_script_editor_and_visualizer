@@ -219,10 +219,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('reloadConfirmModal').addEventListener('click', function(e) {
     if (e.target === this) confirmReload(false);
   });
+  document.getElementById('modeModal').addEventListener('click', function(e) {
+    if (e.target === this) chooseMode('copy');
+  });
+  document.getElementById('fsBadge').addEventListener('click', toggleSyncMode);
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !document.getElementById('helpModal').classList.contains('hidden')) toggleHelp();
     if (e.key === 'Escape' && !document.getElementById('csvErrorModal').classList.contains('hidden')) closeCSVErrors();
     if (e.key === 'Escape' && !document.getElementById('reloadConfirmModal').classList.contains('hidden')) confirmReload(false);
+    if (e.key === 'Escape' && !document.getElementById('modeModal').classList.contains('hidden')) chooseMode('copy');
   });
 });
 
@@ -628,7 +633,15 @@ async function idbClearHandle() {
   } catch (e) { console.warn('idbClearHandle failed', e); }
 }
 
-async function importViaPicker() {
+async function requestWritePermission(handle) {
+  try {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
+    return perm === 'granted';
+  } catch (e) { console.warn('permission error', e); return false; }
+}
+
+async function importViaPicker(forceMode) {
   if (!fsApiAvailable()) { document.getElementById('fileInput').click(); return; }
   let handle;
   try {
@@ -641,21 +654,69 @@ async function importViaPicker() {
     document.getElementById('fileInput').click();
     return;
   }
-  let perm = 'prompt';
-  try {
-    perm = await handle.queryPermission({ mode: 'readwrite' });
-    if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
-  } catch (e) { console.warn('permission error', e); }
   const file = await handle.getFile();
+  const stored = getSyncModeChoice();
+  let mode = forceMode || stored || await showModeModal(file.name);
+  const granted = mode === 'sync' ? await requestWritePermission(handle) : false;
   pushSnapshot('載入CSV');
-  if (perm === 'granted') {
+  if (mode === 'sync' && granted) {
     importedFileHandle = handle;
     fsMtime = file.lastModified;
     try { await idbSetHandle(handle); } catch (e) { console.warn(e); }
     applyCSVText(await file.text(), file.name, true);
   } else {
     applyCSVText(await file.text(), file.name, false);
-    showToast('未授權寫入，此檔案僅可讀取');
+    if (stored === 'sync' || mode === 'sync') showToast('未授權寫入，已切換至僅複本模式');
+  }
+}
+
+// ============ Mode selection (sync vs copy) ============
+let modeResolve = null;
+function getSyncModeChoice() {
+  try { return localStorage.getItem('selEditorSyncMode') || null; } catch (e) { return null; }
+}
+function setSyncModeChoice(mode) {
+  try { localStorage.setItem('selEditorSyncMode', mode); } catch (e) {}
+}
+function showModeModal(fileName) {
+  document.getElementById('modeFileName').textContent = fileName || 'CSV';
+  document.getElementById('modeModal').classList.remove('hidden');
+  return new Promise(resolve => { modeResolve = resolve; });
+}
+function chooseMode(mode) {
+  document.getElementById('modeModal').classList.add('hidden');
+  if (!modeResolve) return;
+  modeResolve(mode);
+  modeResolve = null;
+  const remember = document.getElementById('modeRemember');
+  if (remember && remember.checked) setSyncModeChoice(mode);
+}
+function switchToCopyMode() {
+  stopFileWatch();
+  importedFileHandle = null;
+  fsMtime = 0;
+  idbClearHandle();
+  updateFsBadge();
+  showToast('已切換至僅複本模式：目前編輯不會寫入原始檔案');
+}
+async function toggleSyncMode() {
+  if (!fsApiAvailable()) return;
+  const fileName = (importedFileHandle && importedFileHandle.name) || currentFileName + '.csv';
+  const mode = await showModeModal(fileName);
+  if (mode === 'sync') {
+    if (importedFileHandle) {
+      const granted = await requestWritePermission(importedFileHandle);
+      if (granted) {
+        startFileWatch();
+        showToast('已切換至同步模式：編輯將自動寫入原始檔案');
+      } else {
+        showToast('未授權寫入，無法切換至同步模式');
+      }
+    } else {
+      importViaPicker('sync');
+    }
+  } else {
+    switchToCopyMode();
   }
 }
 
@@ -676,7 +737,7 @@ function stopFileWatch() {
   updateFsBadge();
 }
 function isModalOpen() {
-  return ['csvErrorModal', 'reloadConfirmModal', 'helpModal', 'welcomeModal']
+  return ['csvErrorModal', 'reloadConfirmModal', 'modeModal', 'helpModal', 'welcomeModal']
     .some(id => document.getElementById(id) && !document.getElementById(id).classList.contains('hidden'));
 }
 async function checkFileChange() {
@@ -714,26 +775,30 @@ function updateFsBadge() {
   const b = document.getElementById('fsBadge');
   if (!b) return;
   if (importedFileHandle) {
-    b.className = 'fs-badge on';
-    b.innerHTML = '<span class="fs-dot"></span> 自動同步';
-    b.title = '已連線：' + (importedFileHandle.name || currentFileName + '.csv') + '（自動更新 + 自動同步開啟）';
+    b.className = 'fs-badge on clickable';
+    b.innerHTML = '<span class="fs-dot"></span> 同步模式';
+    b.title = '已連線：' + (importedFileHandle.name || currentFileName + '.csv') + '（編輯停止 2 秒後自動寫入原檔；外部修改自動更新）· 點擊切換模式';
   } else {
-    b.className = 'fs-badge';
-    b.innerHTML = '<span class="fs-dot off"></span> 唯讀模式';
+    b.className = 'fs-badge' + (fsApiAvailable() ? ' clickable' : '');
+    b.innerHTML = '<span class="fs-dot off"></span> 僅複本';
     b.title = fsApiAvailable()
-      ? '目前檔案無法自動同步（拖曳匯入或未授權寫入）'
+      ? '僅複本：編輯不會寫入原始檔案（拖曳匯入亦為複本）· 點擊切換模式'
       : '瀏覽器/開啟方式不支援自動同步（需 https 或 localhost，並用 Chrome/Edge）';
   }
 }
 
 async function initFileHandle() {
   if (!fsApiAvailable() || !window.indexedDB) { updateFsBadge(); return; }
+  if (getSyncModeChoice() !== 'sync') {
+    idbClearHandle();
+    updateFsBadge();
+    return;
+  }
   const handle = await idbGetHandle();
   if (!handle) { updateFsBadge(); return; }
   try {
-    let perm = await handle.queryPermission({ mode: 'readwrite' });
-    if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
-    if (perm !== 'granted') { updateFsBadge(); return; }
+    const granted = await requestWritePermission(handle);
+    if (!granted) { updateFsBadge(); return; }
     importedFileHandle = handle;
     await loadFromHandle(handle);
     showToast('已自動載入上次的檔案：' + (handle.name || ''));
