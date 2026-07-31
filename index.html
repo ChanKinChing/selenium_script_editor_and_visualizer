@@ -19,6 +19,7 @@
     <button class="btn" onclick="clearAll()"><span class="material-symbols-outlined">delete</span> 清空目前Test Case</button>
     <button class="btn" onclick="toggleReadOnly()" id="readOnlyBtn"><span class="material-symbols-outlined">lock</span> 唯讀</button>
     <button class="btn" onclick="syncToCSV()" id="syncBtn" title="同步至匯入的 CSV 檔案"><span class="material-symbols-outlined">sync</span> 同步更變到CSV</button>
+    <span id="fsBadge" class="fs-badge" title=""><span class="fs-dot off"></span> 唯讀模式</span>
     <span class="file-input-wrap btn-import-csv">
       <input type="file" id="fileInput" accept=".csv">
       <span class="material-symbols-outlined">folder_open</span> 載入CSV
@@ -59,7 +60,7 @@
       </table>
       <div class="empty-state" id="emptyState"><p>尚未加入步驟</p><p class="hint">點擊左側按鈕開始</p></div>
     </div>
-    <footer class="app-footer"><span id="rowCount">0 行</span><span>© 2026 ChanKinChing <span>|</span> v2.1.2</span><button class="help-btn" id="helpBtn" title="快捷鍵一覽">?</button></footer>
+    <footer class="app-footer"><span id="rowCount">0 行</span><span>© 2026 ChanKinChing <span>|</span> v2.2.0</span><button class="help-btn" id="helpBtn" title="快捷鍵一覽">?</button></footer>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -103,6 +104,17 @@
     <div id="csvErrorList" class="csv-error-list"></div>
     <div class="modal-btns">
       <button class="btn btn-primary" onclick="closeCSVErrors()">知道了</button>
+    </div>
+  </div>
+</div>
+
+<div id="reloadConfirmModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>⚠ 外部檔案已變更</h3>
+    <p>「<span id="reloadFileName">-</span>」已被其他程式修改。重新載入會覆蓋目前未儲存的編輯。</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="confirmReload(false)">保留目前編輯</button>
+      <button class="btn btn-primary" onclick="confirmReload(true)">重新載入</button>
     </div>
   </div>
 </div>

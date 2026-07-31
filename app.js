@@ -87,6 +87,16 @@ let findMatchText = '';
 let findMatchIdx = -1;
 let isRenaming = false;
 let importedFileHandle = null;
+let fsMtime = 0;
+let fsWatchTimer = null;
+let fsAutoSyncTimer = null;
+let reloadResolve = null;
+const FS_POLL_MS = 2500;
+const FS_AUTOSYNC_MS = 2000;
+function fsApiAvailable() {
+  if (typeof window === 'undefined') return false;
+  return !!(window.isSecureContext && typeof window.showOpenFilePicker === 'function');
+}
 function saveFileName() {
   const input = document.getElementById('fileRenameInput');
   const val = input.value.trim() || 'Test_case.csv';
@@ -174,7 +184,7 @@ function restoreSnapshot(snap) {
     breakpoints = testCases[currentIdx].breakpoints;
   } else { steps = []; breakpoints = new Set(); }
   selectedRowIdx = -1;
-  isDirty = true;
+  markDirty();
   renderAll();
   renderTcList();
   updateUndoButtons();
@@ -206,9 +216,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('csvErrorModal').addEventListener('click', function(e) {
     if (e.target === this) closeCSVErrors();
   });
+  document.getElementById('reloadConfirmModal').addEventListener('click', function(e) {
+    if (e.target === this) confirmReload(false);
+  });
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !document.getElementById('helpModal').classList.contains('hidden')) toggleHelp();
     if (e.key === 'Escape' && !document.getElementById('csvErrorModal').classList.contains('hidden')) closeCSVErrors();
+    if (e.key === 'Escape' && !document.getElementById('reloadConfirmModal').classList.contains('hidden')) confirmReload(false);
   });
 });
 
@@ -223,6 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderButtons();
   renderTcList();
   document.getElementById('fileInput').addEventListener('change', loadCSV);
+  document.getElementById('fileInput').addEventListener('click', function(e) {
+    if (fsApiAvailable()) { e.preventDefault(); importViaPicker(); }
+  });
   document.getElementById('findBtn').addEventListener('mouseenter', async function() {
     try {
       const text = await navigator.clipboard.readText();
@@ -252,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     steps = testCases[currentIdx].steps;
     breakpoints = testCases[currentIdx].breakpoints;
     selectedRowIdx = -1;
-    isDirty = true;
+    markDirty();
     renderAll();
     renderTcList();
     showToast('已新增: ' + name);
@@ -287,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const active = document.activeElement;
       if (active && !active.closest('.steps-col.btns') && !active.closest('header') && !active.closest('.fld')) {
         const row = active.closest('.step-tr');
-        if (row) { const ri = parseInt(row.dataset.idx); const act = steps[ri].a||'自訂'; pushSnapshot('刪除步驟' + (ri+1) + '(' + act + ')'); steps.splice(ri, 1); isDirty = true; selectedRowIdx = -1; renderAll(); e.preventDefault(); showToast(`已刪除步驟 ${ri+1} (${act})`); }
+        if (row) { const ri = parseInt(row.dataset.idx); const act = steps[ri].a||'自訂'; pushSnapshot('刪除步驟' + (ri+1) + '(' + act + ')'); steps.splice(ri, 1); markDirty(); selectedRowIdx = -1; renderAll(); e.preventDefault(); showToast(`已刪除步驟 ${ri+1} (${act})`); }
       }
     }
   });
@@ -336,9 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.step-tr')) return;
     clearHoverMatch();
   });
-  // Welcome modal on first visit
-  if (testCases.length === 0 && !sessionStorage.getItem('welcomeDismissed'))
-    document.getElementById('welcomeModal').classList.remove('hidden');
+  // Welcome modal on first visit (after auto-restore attempt)
+  initFileHandle().then(() => {
+    if (testCases.length === 0 && !sessionStorage.getItem('welcomeDismissed'))
+      document.getElementById('welcomeModal').classList.remove('hidden');
+  });
   // Copy semantic tag on click
   document.getElementById('stepBody').addEventListener('click', (e) => {
     const tag = e.target.closest('.sem-val, .sem-path, .sem-hl');
@@ -374,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const [m] = steps.splice(dragSrcIdx, 1);
     if (t > dragSrcIdx) t--;
     steps.splice(t, 0, m);
-    isDirty = true; renderAll();
+    markDirty(); renderAll();
     showToast(`已移動步驟`);
     requestAnimationFrame(() => {
       const row = body.querySelector(`[data-idx="${t}"]`);
@@ -498,67 +517,232 @@ function loadCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
   pushSnapshot('載入CSV');
-  importedFileHandle = null;
-  currentFileName = file.name.replace(/\.csv$/i, '');
   const reader = new FileReader();
   reader.onload = function(ev) {
-    const txt = ev.target.result;
-    const lines = txt.split(/\r?\n/).filter(l => l.trim());
-    if (!lines.length) return;
-    testCases = [];
-    const errors = [];
-    let lineNum = 0;
-    for (const line of lines) {
-      lineNum++;
-      const cells = parseCSVLine(line);
-      const name = cells[0] || '';
-      const fixed = [cells[0]];
-      for (let i = 1; i + 2 < cells.length; i += 3) {
-        const p1 = cells[i] || '';
-        const p2 = cells[i+1] || '';
-        const a = cells[i+2] || '';
-        if (p2 && a && ALL_ACTIONS.includes(p2) && ALL_ACTIONS.includes(a) && !PH.p2[a]) {
-          fixed.push(p1, '', p2);
-          fixed.push('', '', a);
-        } else {
-          fixed.push(p1, p2, a);
-        }
-      }
-      const tcSteps = [];
-      let stepNum = 0;
-      for (let i = 1; i + 2 < fixed.length; i += 3) {
-        stepNum++;
-        const s = { p1: fixed[i] || '', p2: fixed[i+1] || '', a: fixed[i+2] || '' };
-        const errs = validateCSVStep(s);
-        if (errs.length) errors.push({ line: lineNum, step: stepNum, raw: [s.p1, s.p2, s.a].map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(','), msgs: errs });
-        if (s.a !== '' && !ALL_ACTIONS.includes(s.a)) s._error = true;
-        tcSteps.push(s);
-      }
-      if ((cells.length - 1) % 3 !== 0) {
-        errors.push({ line: lineNum, step: 0, raw: line, msgs: ['欄位數異常（可能多/少了逗號），每 3 欄為一步：p1,値,指令'] });
-      }
-      testCases.push({ name, steps: tcSteps, breakpoints: new Set() });
-    }
-    if (testCases.length) {
-      currentIdx = 0;
-      steps = testCases[0].steps;
-      breakpoints = testCases[0].breakpoints;
-    }
-    document.getElementById('fileInfoHeader').textContent = '▾ ' + file.name;
-    isDirty = false;
-    saveState();
-    renderAll();
-    renderTcList();
-    if (errors.length) {
-      showCSVErrors(errors);
-      showToast(`已載入，但有 ${errors.length} 個問題（已標紅）`);
-    } else {
-      showToast('已載入 ' + file.name);
-    }
+    applyCSVText(ev.target.result, file.name, false);
   };
   reader.onerror = () => { showToast('無法讀取檔案'); };
   reader.readAsText(file);
   e.target.value = '';
+}
+
+function applyCSVText(txt, fileName, fromHandle) {
+  const lines = txt.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) { showToast('檔案內容為空'); return; }
+  if (!fromHandle) { stopFileWatch(); importedFileHandle = null; fsMtime = 0; }
+  currentFileName = fileName.replace(/\.csv$/i, '');
+  testCases = [];
+  const errors = [];
+  let lineNum = 0;
+  for (const line of lines) {
+    lineNum++;
+    const cells = parseCSVLine(line);
+    const name = cells[0] || '';
+    const fixed = [cells[0]];
+    for (let i = 1; i + 2 < cells.length; i += 3) {
+      const p1 = cells[i] || '';
+      const p2 = cells[i+1] || '';
+      const a = cells[i+2] || '';
+      if (p2 && a && ALL_ACTIONS.includes(p2) && ALL_ACTIONS.includes(a) && !PH.p2[a]) {
+        fixed.push(p1, '', p2);
+        fixed.push('', '', a);
+      } else {
+        fixed.push(p1, p2, a);
+      }
+    }
+    const tcSteps = [];
+    let stepNum = 0;
+    for (let i = 1; i + 2 < fixed.length; i += 3) {
+      stepNum++;
+      const s = { p1: fixed[i] || '', p2: fixed[i+1] || '', a: fixed[i+2] || '' };
+      const errs = validateCSVStep(s);
+      if (errs.length) errors.push({ line: lineNum, step: stepNum, raw: [s.p1, s.p2, s.a].map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(','), msgs: errs });
+      if (s.a !== '' && !ALL_ACTIONS.includes(s.a)) s._error = true;
+      tcSteps.push(s);
+    }
+    if ((cells.length - 1) % 3 !== 0) {
+      errors.push({ line: lineNum, step: 0, raw: line, msgs: ['欄位數異常（可能多/少了逗號），每 3 欄為一步：p1,値,指令'] });
+    }
+    testCases.push({ name, steps: tcSteps, breakpoints: new Set() });
+  }
+  if (testCases.length) {
+    currentIdx = 0;
+    steps = testCases[0].steps;
+    breakpoints = testCases[0].breakpoints;
+  }
+  document.getElementById('fileInfoHeader').textContent = '▾ ' + fileName;
+  isDirty = false;
+  saveState();
+  renderAll();
+  renderTcList();
+  if (fromHandle) startFileWatch(); else updateFsBadge();
+  if (errors.length) {
+    showCSVErrors(errors);
+    showToast(`已載入，但有 ${errors.length} 個問題（已標紅）`);
+  } else {
+    showToast('已載入 ' + fileName);
+  }
+}
+
+// ============ File System Access API (auto update + auto sync) ============
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('no indexedDB')); return; }
+    const req = window.indexedDB.open('selEditorFS', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('handles'); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSetHandle(handle) {
+  try {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(handle, 'importedCsv');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { console.warn('idbSetHandle failed', e); }
+}
+async function idbGetHandle() {
+  try {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('importedCsv');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) { console.warn('idbGetHandle failed', e); return null; }
+}
+async function idbClearHandle() {
+  try {
+    const db = await idbOpen();
+    return new Promise(resolve => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').delete('importedCsv');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) { console.warn('idbClearHandle failed', e); }
+}
+
+async function importViaPicker() {
+  if (!fsApiAvailable()) { document.getElementById('fileInput').click(); return; }
+  let handle;
+  try {
+    [handle] = await window.showOpenFilePicker({
+      multiple: false,
+      types: [{ description: 'CSV 檔案', accept: { 'text/csv': ['.csv'], 'text/plain': ['.csv'] } }]
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    document.getElementById('fileInput').click();
+    return;
+  }
+  let perm = 'prompt';
+  try {
+    perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
+  } catch (e) { console.warn('permission error', e); }
+  const file = await handle.getFile();
+  pushSnapshot('載入CSV');
+  if (perm === 'granted') {
+    importedFileHandle = handle;
+    fsMtime = file.lastModified;
+    try { await idbSetHandle(handle); } catch (e) { console.warn(e); }
+    applyCSVText(await file.text(), file.name, true);
+  } else {
+    applyCSVText(await file.text(), file.name, false);
+    showToast('未授權寫入，此檔案僅可讀取');
+  }
+}
+
+async function loadFromHandle(handle) {
+  const file = await handle.getFile();
+  fsMtime = file.lastModified;
+  applyCSVText(await file.text(), file.name, true);
+}
+
+function startFileWatch() {
+  stopFileWatch();
+  if (!importedFileHandle) return;
+  fsWatchTimer = setInterval(checkFileChange, FS_POLL_MS);
+  updateFsBadge();
+}
+function stopFileWatch() {
+  if (fsWatchTimer) { clearInterval(fsWatchTimer); fsWatchTimer = null; }
+  updateFsBadge();
+}
+function isModalOpen() {
+  return ['csvErrorModal', 'reloadConfirmModal', 'helpModal', 'welcomeModal']
+    .some(id => document.getElementById(id) && !document.getElementById(id).classList.contains('hidden'));
+}
+async function checkFileChange() {
+  if (!importedFileHandle || isModalOpen()) return;
+  try {
+    const file = await importedFileHandle.getFile();
+    if (file.lastModified === fsMtime) return;
+    fsMtime = file.lastModified;
+    if (isDirty) {
+      const doReload = await confirmReloadModal(file.name);
+      if (!doReload) return;
+    }
+    applyCSVText(await file.text(), file.name, true);
+    showToast('偵測到外部變更，已重新載入');
+  } catch (e) {
+    console.warn('checkFileChange failed', e);
+    stopFileWatch();
+    importedFileHandle = null;
+    idbClearHandle();
+  }
+}
+function confirmReloadModal(fileName) {
+  return new Promise(resolve => {
+    reloadResolve = resolve;
+    document.getElementById('reloadFileName').textContent = fileName || 'CSV';
+    document.getElementById('reloadConfirmModal').classList.remove('hidden');
+  });
+}
+function confirmReload(doIt) {
+  document.getElementById('reloadConfirmModal').classList.add('hidden');
+  if (reloadResolve) { reloadResolve(doIt); reloadResolve = null; }
+}
+
+function updateFsBadge() {
+  const b = document.getElementById('fsBadge');
+  if (!b) return;
+  if (importedFileHandle) {
+    b.className = 'fs-badge on';
+    b.innerHTML = '<span class="fs-dot"></span> 自動同步';
+    b.title = '已連線：' + (importedFileHandle.name || currentFileName + '.csv') + '（自動更新 + 自動同步開啟）';
+  } else {
+    b.className = 'fs-badge';
+    b.innerHTML = '<span class="fs-dot off"></span> 唯讀模式';
+    b.title = fsApiAvailable()
+      ? '目前檔案無法自動同步（拖曳匯入或未授權寫入）'
+      : '瀏覽器/開啟方式不支援自動同步（需 https 或 localhost，並用 Chrome/Edge）';
+  }
+}
+
+async function initFileHandle() {
+  if (!fsApiAvailable() || !window.indexedDB) { updateFsBadge(); return; }
+  const handle = await idbGetHandle();
+  if (!handle) { updateFsBadge(); return; }
+  try {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { updateFsBadge(); return; }
+    importedFileHandle = handle;
+    await loadFromHandle(handle);
+    showToast('已自動載入上次的檔案：' + (handle.name || ''));
+  } catch (e) {
+    console.warn('initFileHandle failed', e);
+    stopFileWatch();
+    importedFileHandle = null;
+    idbClearHandle();
+  }
 }
 
 // ============ CSV error report modal ============
@@ -615,7 +799,7 @@ function addStep(param2, actionOverride) {
     steps.push(newStep);
     idx = steps.length - 1;
   }
-  isDirty = true;
+  markDirty();
   renderAll();
   if (NEEDS_ELEMENT.includes(action)) {
     focusField(idx, 'p1');
@@ -652,7 +836,7 @@ function createNewTC() {
 function triggerImport() {
   document.getElementById('welcomeModal').classList.add('hidden');
   sessionStorage.setItem('welcomeDismissed', '1');
-  document.getElementById('fileInput').click();
+  importViaPicker();
 }
 function closeWelcome() {
   document.getElementById('welcomeModal').classList.add('hidden');
@@ -886,7 +1070,7 @@ function renderAll() {
 
     const del = document.createElement('button');
     del.className = 'del-btn'; del.textContent = '✕';
-    del.onclick = () => { const act = steps[i].a||'自訂'; pushSnapshot('刪除步驟' + (i+1) + '(' + act + ')'); steps.splice(i, 1); isDirty = true; selectedRowIdx = -1; renderAll(); showToast(`已刪除步驟 ${i+1} (${act})`); };
+    del.onclick = () => { const act = steps[i].a||'自訂'; pushSnapshot('刪除步驟' + (i+1) + '(' + act + ')'); steps.splice(i, 1); markDirty(); selectedRowIdx = -1; renderAll(); showToast(`已刪除步驟 ${i+1} (${act})`); };
     grid.appendChild(del);
 
     tdSyn.appendChild(grid);
@@ -972,7 +1156,7 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
   };
   const doUpdate = () => {
     step[cls] = inp.value;
-    isDirty = true;
+    markDirty();
     autoGrow();
     const idx = steps.indexOf(step);
     if (idx >= 0) refreshSemantic(idx);
@@ -1001,7 +1185,7 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
       const t = await navigator.clipboard.readText();
       inp.value = t;
       step[cls] = t;
-      isDirty = true;
+      markDirty();
       doUpdate();
       showToast('已貼上');
     } catch(e) {
@@ -1060,40 +1244,88 @@ function saveCSV() {
 }
 
 // ============ Sync to CSV ============
-function syncToCSV() {
-  const err = hasValidationErrors();
-  if (err) { showToast(err); return; }
+function buildCSVContent() {
   const lines = testCases.map(tc => {
     const cells = [tc.name.trim()];
     for (const s of tc.steps) { cells.push(s.p1||'', s.p2||'', s.a||''); }
     return cells.map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
   });
-  const content = lines.join('\r\n') + '\r\n';
+  return lines.join('\r\n') + '\r\n';
+}
+function markDirty() {
+  isDirty = true;
+  scheduleAutoSync();
+}
+function scheduleAutoSync() {
+  if (fsAutoSyncTimer) clearTimeout(fsAutoSyncTimer);
+  fsAutoSyncTimer = setTimeout(() => { fsAutoSyncTimer = null; autoSync(); }, FS_AUTOSYNC_MS);
+}
+async function autoSync() {
+  if (!importedFileHandle || !isDirty) return;
+  if (document.hidden) { scheduleAutoSync(); return; }
+  if (hasValidationErrors()) return;
+  try {
+    const perm = await importedFileHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return;
+    const writable = await importedFileHandle.createWritable();
+    await writable.write(buildCSVContent());
+    await writable.close();
+    const f = await importedFileHandle.getFile();
+    fsMtime = f.lastModified;
+    isDirty = false;
+    saveState();
+  } catch (e) {
+    console.warn('autoSync failed', e);
+  }
+}
+function syncToCSV() {
+  const err = hasValidationErrors();
+  if (err) { showToast(err); return; }
+  const content = buildCSVContent();
   (async () => {
     try {
       let handle = importedFileHandle;
-      if (!handle) {
-        if (!window.showSaveFilePicker) {
-          const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = (currentFileName || 'test_cases') + '.csv'; a.click();
-          URL.revokeObjectURL(url);
+      if (handle) {
+        let perm = 'prompt';
+        try {
+          perm = await handle.queryPermission({ mode: 'readwrite' });
+          if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
+        } catch (e) { console.warn(e); }
+        if (perm === 'granted') {
+          const writable = await handle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          const f = await handle.getFile();
+          fsMtime = f.lastModified;
           isDirty = false; saveState();
-          showToast('已導出 CSV（瀏覽器不支援直接覆寫原始檔案）');
+          showToast('已同步至 ' + (handle.name || currentFileName + '.csv'));
           return;
         }
-        handle = await window.showSaveFilePicker({
-          suggestedName: (currentFileName || 'test_cases') + '.csv',
-          types: [{ description: 'CSV 檔案', accept: { 'text/csv': ['.csv'] } }]
-        });
-        importedFileHandle = handle;
       }
+      if (!window.showSaveFilePicker) {
+        const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = (currentFileName || 'test_cases') + '.csv'; a.click();
+        URL.revokeObjectURL(url);
+        isDirty = false; saveState();
+        showToast('已導出 CSV（瀏覽器不支援直接覆寫原始檔案）');
+        return;
+      }
+      handle = await window.showSaveFilePicker({
+        suggestedName: (currentFileName || 'test_cases') + '.csv',
+        types: [{ description: 'CSV 檔案', accept: { 'text/csv': ['.csv'] } }]
+      });
+      importedFileHandle = handle;
+      try { await idbSetHandle(handle); } catch (e) { console.warn(e); }
       const writable = await handle.createWritable();
       await writable.write(content);
       await writable.close();
+      const f = await handle.getFile();
+      fsMtime = f.lastModified;
       isDirty = false; saveState();
       showToast('已同步至 ' + (handle.name || currentFileName + '.csv'));
+      startFileWatch();
     } catch (e) {
       if (e.name === 'AbortError') return;
       showToast('儲存失敗: ' + e.message);
@@ -1105,7 +1337,10 @@ function syncToCSV() {
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
   pushSnapshot('清空');
+  stopFileWatch();
   importedFileHandle = null;
+  fsMtime = 0;
+  idbClearHandle();
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
   currentFileName = 'Test_case';
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
@@ -1146,12 +1381,13 @@ function renderTcList() {
           e.preventDefault();
           pushSnapshot('重新命名TC');
           testCases[i].name = this.value.trim() || `TC ${i+1}`;
+          markDirty();
           exitRenameMode();
         }
       });
       inp.addEventListener('blur', function() {
         const v = this.value.trim() || `TC ${i+1}`;
-        if (v !== (tc.name || `TC ${i+1}`)) { pushSnapshot(); testCases[i].name = v; }
+        if (v !== (tc.name || `TC ${i+1}`)) { pushSnapshot(); testCases[i].name = v; markDirty(); }
         renderTcList();
       });
       list.appendChild(inp);
@@ -1181,7 +1417,7 @@ function renderTcList() {
           steps = []; breakpoints = new Set();
         }
         selectedRowIdx = -1;
-        isDirty = true;
+        markDirty();
         renderAll();
         renderTcList();
         showToast('已刪除: ' + tcName);
