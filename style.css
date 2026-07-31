@@ -286,6 +286,17 @@ kbd{background:#e5e7eb;border:1px solid #d1d5db;border-radius:3px;padding:1px 6p
 .modal-box p{font-size:13px;color:var(--text-muted);margin-bottom:16px}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end}
 
+/* ── CSV error report modal ── */
+.csv-error-box{max-width:580px;width:92%}
+.csv-error-box h3{color:var(--danger)}
+.csv-error-box p{font-size:12px}
+.csv-error-list{max-height:45vh;overflow-y:auto;margin-bottom:14px;font-size:12px}
+.csv-error-item{padding:8px 10px;border-radius:6px;background:var(--key-bg);margin-bottom:6px;border-left:3px solid var(--danger)}
+.csv-error-title{font-weight:700;color:var(--danger);font-size:12px;margin-bottom:2px}
+.csv-error-raw{font-family:var(--mono);font-size:11px;color:var(--text-muted);word-break:break-all;margin-bottom:3px}
+.csv-error-msg{font-size:11px;color:var(--text);line-height:1.5}
+#csvErrorModal .btn{pointer-events:auto;opacity:1}
+
 /* ── Responsive ── */
 @media(max-width:900px){
   .steps-col.btns{width:25%}

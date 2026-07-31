@@ -86,6 +86,7 @@ let isReadOnly = false;
 let findMatchText = '';
 let findMatchIdx = -1;
 let isRenaming = false;
+let importedFileHandle = null;
 function saveFileName() {
   const input = document.getElementById('fileRenameInput');
   const val = input.value.trim() || 'Test_case.csv';
@@ -202,8 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('helpModal').addEventListener('click', function(e) {
     if (e.target === this) toggleHelp();
   });
+  document.getElementById('csvErrorModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCSVErrors();
+  });
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !document.getElementById('helpModal').classList.contains('hidden')) toggleHelp();
+    if (e.key === 'Escape' && !document.getElementById('csvErrorModal').classList.contains('hidden')) closeCSVErrors();
   });
 });
 
@@ -477,10 +482,23 @@ function parseCSVLine(line) {
   return r;
 }
 
+function validateCSVStep(s) {
+  const errs = [];
+  const a = s.a || '';
+  if (a !== '' && !ALL_ACTIONS.includes(a)) errs.push(`無法識別的操作「${a}」`);
+  if (NEEDS_ELEMENT.includes(a) && !s.p1) errs.push(`指令「${a}」缺少元素路徑 (p1)`);
+  if (NEEDS_VALUE.includes(a) && !s.p2 && a !== 'pause' && a !== 'assert_attribute_value' && a !== 'assert_text' && a !== 'dropdown') errs.push(`指令「${a}」缺少必要値 (p2)`);
+  if (a === 'pause' && s.p2 && !/^\d*$/.test(s.p2)) errs.push('pause 秒數須為數字');
+  if (a === 'open' && s.p2 && !/^https?:\/\//.test(s.p2) && !s.p2.startsWith('/')) errs.push('open URL 格式不正確');
+  if (XPATH_ACTIONS.includes(a) && s.p1 && !/^(\/\/?|\(|\.\/)/.test(s.p1)) errs.push('XPath 格式不正確');
+  return errs;
+}
+
 function loadCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
   pushSnapshot('載入CSV');
+  importedFileHandle = null;
   currentFileName = file.name.replace(/\.csv$/i, '');
   const reader = new FileReader();
   reader.onload = function(ev) {
@@ -488,8 +506,10 @@ function loadCSV(e) {
     const lines = txt.split(/\r?\n/).filter(l => l.trim());
     if (!lines.length) return;
     testCases = [];
-    let totalErr = 0;
+    const errors = [];
+    let lineNum = 0;
     for (const line of lines) {
+      lineNum++;
       const cells = parseCSVLine(line);
       const name = cells[0] || '';
       const fixed = [cells[0]];
@@ -505,11 +525,17 @@ function loadCSV(e) {
         }
       }
       const tcSteps = [];
+      let stepNum = 0;
       for (let i = 1; i + 2 < fixed.length; i += 3) {
-        const a = fixed[i+2] || '';
-        const unknown = a !== '' && !ALL_ACTIONS.includes(a);
-        if (unknown) totalErr++;
-        tcSteps.push({ p1: fixed[i] || '', p2: fixed[i+1] || '', a, _error: unknown || undefined });
+        stepNum++;
+        const s = { p1: fixed[i] || '', p2: fixed[i+1] || '', a: fixed[i+2] || '' };
+        const errs = validateCSVStep(s);
+        if (errs.length) errors.push({ line: lineNum, step: stepNum, raw: [s.p1, s.p2, s.a].map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(','), msgs: errs });
+        if (s.a !== '' && !ALL_ACTIONS.includes(s.a)) s._error = true;
+        tcSteps.push(s);
+      }
+      if ((cells.length - 1) % 3 !== 0) {
+        errors.push({ line: lineNum, step: 0, raw: line, msgs: ['欄位數異常（可能多/少了逗號），每 3 欄為一步：p1,値,指令'] });
       }
       testCases.push({ name, steps: tcSteps, breakpoints: new Set() });
     }
@@ -518,17 +544,40 @@ function loadCSV(e) {
       steps = testCases[0].steps;
       breakpoints = testCases[0].breakpoints;
     }
-    if (totalErr) showToast(`已載入，但有 ${totalErr} 列無法識別的操作（已標紅）`);
     document.getElementById('fileInfoHeader').textContent = '▾ ' + file.name;
-    showToast('已載入 ' + file.name);
     isDirty = false;
     saveState();
     renderAll();
     renderTcList();
+    if (errors.length) {
+      showCSVErrors(errors);
+      showToast(`已載入，但有 ${errors.length} 個問題（已標紅）`);
+    } else {
+      showToast('已載入 ' + file.name);
+    }
   };
   reader.onerror = () => { showToast('無法讀取檔案'); };
   reader.readAsText(file);
   e.target.value = '';
+}
+
+// ============ CSV error report modal ============
+function showCSVErrors(errors) {
+  const list = document.getElementById('csvErrorList');
+  list.innerHTML = '';
+  errors.forEach(er => {
+    const div = document.createElement('div');
+    div.className = 'csv-error-item';
+    const title = er.step > 0 ? `第 ${er.line} 行 ・ 步驟 ${er.step}` : `第 ${er.line} 行`;
+    const msgs = er.msgs.map(m => '<div class="csv-error-msg">• ' + m + '</div>').join('');
+    div.innerHTML = `<div class="csv-error-title">${title}</div><div class="csv-error-raw">${esc(er.raw)}</div>${msgs}`;
+    list.appendChild(div);
+  });
+  document.getElementById('csvErrorCount').textContent = `共 ${errors.length} 個問題，請修正後重新載入`;
+  document.getElementById('csvErrorModal').classList.remove('hidden');
+}
+function closeCSVErrors() {
+  document.getElementById('csvErrorModal').classList.add('hidden');
 }
 
 // ============ Actions ============
@@ -682,6 +731,61 @@ const PH = {
   },
 };
 
+function computeBlockInfo(steps) {
+  const blockDepths = new Map();
+  let depth = 0;
+  steps.forEach((step, i) => {
+    const a = step.a || '';
+    if (a === 'check_presence_to_continue') depth++;
+    blockDepths.set(i, depth);
+    if (a === 'end_check_presence_to_continue') depth = Math.max(0, depth - 1);
+  });
+  const unmatchedCheck = new Set();
+  const unmatchedEnd = new Set();
+  const blockStack = [];
+  steps.forEach((step, i) => {
+    if (step.a === 'check_presence_to_continue') blockStack.push(i);
+    else if (step.a === 'end_check_presence_to_continue') {
+      if (blockStack.length) blockStack.pop();
+      else unmatchedEnd.add(i);
+    }
+  });
+  blockStack.forEach(i => unmatchedCheck.add(i));
+  return { blockDepths, unmatchedCheck, unmatchedEnd };
+}
+
+function semanticHTML(step, i, unmatchedCheck, unmatchedEnd) {
+  const a = step.a || '';
+  if (step._error) {
+    return `<span class="sem-prefix"></span><span style="color:var(--danger);font-weight:600">⚠ 無法識別的操作: ${esc(a)}</span>`;
+  } else if (unmatchedCheck.has(i)) {
+    return '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
+  } else if (unmatchedEnd.has(i)) {
+    return '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 check_presence_to_continue</span>';
+  } else if (a === '') {
+    return '<span class="sem-prefix"></span>自定義指令';
+  } else if (SEM[a]) {
+    const isOp = ACTION_EMOJI.includes(a);
+    return '<span class="sem-prefix">' + (isOp ? '▶' : '-') + '</span> ' + SEM[a].desc(step.p1, step.p2);
+  } else {
+    return '<span class="sem-prefix"></span><span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
+  }
+}
+
+function refreshSemantic(rowIdx) {
+  const info = computeBlockInfo(steps);
+  const tr = document.querySelector(`.step-tr[data-idx="${rowIdx}"]`);
+  if (!tr) return;
+  const semSpan = tr.querySelector('.sem-cell');
+  if (semSpan) {
+    semSpan.innerHTML = semanticHTML(steps[rowIdx], rowIdx, info.unmatchedCheck, info.unmatchedEnd);
+    semSpan.title = '';
+  }
+  const tdSyn = tr.querySelector('.td-syn');
+  if (tdSyn) tdSyn.classList.toggle('has-block', (info.blockDepths.get(rowIdx) || 0) > 0);
+  tr.classList.toggle('row-error', stepHasError(steps[rowIdx]));
+}
+
 function renderAll() {
   const body = document.getElementById('stepBody');
   const empty = document.getElementById('emptyState');
@@ -696,26 +800,7 @@ function renderAll() {
   empty.style.display = 'none';
   document.getElementById('rowCount').textContent = steps.length + ' 行';
 
-  let blockDepth = 0;
-  const blockDepths = new Map();
-  steps.forEach((step, i) => {
-    const a = step.a || '';
-    if (a === 'check_presence_to_continue') blockDepth++;
-    blockDepths.set(i, blockDepth);
-    if (a === 'end_check_presence_to_continue') blockDepth = Math.max(0, blockDepth - 1);
-  });
-
-  const unmatchedCheck = new Set();
-  const unmatchedEnd = new Set();
-  const blockStack = [];
-  steps.forEach((step, i) => {
-    if (step.a === 'check_presence_to_continue') blockStack.push(i);
-    else if (step.a === 'end_check_presence_to_continue') {
-      if (blockStack.length) blockStack.pop();
-      else unmatchedEnd.add(i);
-    }
-  });
-  blockStack.forEach(i => unmatchedCheck.add(i));
+  const { blockDepths, unmatchedCheck, unmatchedEnd } = computeBlockInfo(steps);
 
   const actColors = {
     'open':'#059669','pause':'#059669','click':'#7c3aed','type':'#7c3aed','dropdown':'#7c3aed','press':'#7c3aed',
@@ -788,7 +873,7 @@ function renderAll() {
       actInp.rows = 1; actInp.placeholder = '動作';
       actInp.style.cssText = 'font-size:12px;font-weight:600;text-align:right;min-height:28px;resize:none;overflow:hidden;padding:2px 4px;font-family:var(--mono);border:2px solid var(--border);border-radius:4px;background:var(--surface)';
       const grow = () => { actInp.style.height = 'auto'; actInp.style.height = Math.max(actInp.scrollHeight, 28) + 'px'; };
-      actInp.oninput = () => { step.a = actInp.value; grow(); };
+      actInp.oninput = () => { step.a = actInp.value; grow(); const idx = steps.indexOf(step); if (idx >= 0) refreshSemantic(idx); };
       grow();
       grid.appendChild(actInp);
     } else {
@@ -812,22 +897,9 @@ function renderAll() {
     tdSem.className = 'td-sem';
     const semSpan = document.createElement('span');
     semSpan.className = 'sem-cell';
-    if (step._error) {
-      semSpan.innerHTML = `<span class="sem-prefix"></span><span style="color:var(--danger);font-weight:600">⚠ 無法識別的操作: ${esc(a)}</span>`;
-    } else if (unmatchedCheck.has(i)) {
-      semSpan.innerHTML = '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 end</span>';
-      semSpan.title = '此 check_presence 沒有對應的 end_check_presence_to_continue';
-    } else if (unmatchedEnd.has(i)) {
-      semSpan.innerHTML = '<span class="sem-prefix"></span><span style="color:var(--danger);background:#fef2f2;padding:0 6px;border-radius:4px;font-weight:600">⚠ 缺少 check_presence_to_continue</span>';
-      semSpan.title = '此 end_check 沒有對應的 check_presence_to_continue';
-    } else if (a === '') {
-      semSpan.innerHTML = '<span class="sem-prefix"></span>自定義指令';
-    } else if (SEM[a]) {
-      const isOp = ACTION_EMOJI.includes(a);
-      semSpan.innerHTML = '<span class="sem-prefix">' + (isOp ? '▶' : '-') + '</span> ' + SEM[a].desc(step.p1, step.p2);
-    } else {
-      semSpan.innerHTML = '<span class="sem-prefix"></span><span class="sem-hl">' + esc(a) + '</span> p1=<span class="sem-val ' + (step.p1?'filled':'empty') + '">' + esc(step.p1) + '</span> p2=<span class="sem-val ' + (step.p2?'filled':'empty') + '">' + esc(step.p2) + '</span>';
-    }
+    semSpan.innerHTML = semanticHTML(step, i, unmatchedCheck, unmatchedEnd);
+    if (unmatchedCheck.has(i)) semSpan.title = '此 check_presence 沒有對應的 end_check_presence_to_continue';
+    if (unmatchedEnd.has(i)) semSpan.title = '此 end_check 沒有對應的 check_presence_to_continue';
     tdSem.appendChild(semSpan);
     tr.appendChild(tdSem);
 
@@ -902,6 +974,8 @@ function makeFieldWrap(cls, step, a, needsList, placeholder) {
     step[cls] = inp.value;
     isDirty = true;
     autoGrow();
+    const idx = steps.indexOf(step);
+    if (idx >= 0) refreshSemantic(idx);
     if (inp.value) {
       inp.classList.remove('danger');
       wrap.classList.add('has-value');
@@ -985,10 +1059,53 @@ function saveCSV() {
   showToast('已儲存 CSV');
 }
 
+// ============ Sync to CSV ============
+function syncToCSV() {
+  const err = hasValidationErrors();
+  if (err) { showToast(err); return; }
+  const lines = testCases.map(tc => {
+    const cells = [tc.name.trim()];
+    for (const s of tc.steps) { cells.push(s.p1||'', s.p2||'', s.a||''); }
+    return cells.map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(',');
+  });
+  const content = lines.join('\r\n') + '\r\n';
+  (async () => {
+    try {
+      let handle = importedFileHandle;
+      if (!handle) {
+        if (!window.showSaveFilePicker) {
+          const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = (currentFileName || 'test_cases') + '.csv'; a.click();
+          URL.revokeObjectURL(url);
+          isDirty = false; saveState();
+          showToast('已導出 CSV（瀏覽器不支援直接覆寫原始檔案）');
+          return;
+        }
+        handle = await window.showSaveFilePicker({
+          suggestedName: (currentFileName || 'test_cases') + '.csv',
+          types: [{ description: 'CSV 檔案', accept: { 'text/csv': ['.csv'] } }]
+        });
+        importedFileHandle = handle;
+      }
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      isDirty = false; saveState();
+      showToast('已同步至 ' + (handle.name || currentFileName + '.csv'));
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      showToast('儲存失敗: ' + e.message);
+    }
+  })();
+}
+
 // ============ Clear ============
 function clearAll() {
   if (testCases.some(tc => tc.steps.length) && !confirm('確定清空所有 Test Case？')) return;
   pushSnapshot('清空');
+  importedFileHandle = null;
   testCases = []; currentIdx = -1; steps = []; breakpoints = new Set(); selectedRowIdx = -1;
   currentFileName = 'Test_case';
   document.getElementById('fileInfoHeader').textContent = '▾ Test_case.csv';
@@ -1152,28 +1269,35 @@ function findClipboard() {
     const rows = document.querySelectorAll('.step-tr');
     document.querySelectorAll('.step-tr.find-match').forEach(el => el.classList.remove('find-match'));
     if (text !== findMatchText) { findMatchIdx = -1; findMatchText = text; }
-    let found = false;
-    for (let i = findMatchIdx + 1; i < rows.length; i++) {
-      const syn = rows[i].querySelector('.td-syn');
-      const sem = rows[i].querySelector('.td-sem');
+
+    const allMatches = [];
+    rows.forEach((row, i) => {
+      const syn = row.querySelector('.td-syn');
+      const sem = row.querySelector('.td-sem');
       const content = syn?.textContent + ' ' + sem?.textContent;
-      if (content.includes(text)) {
-        rows[i].classList.add('find-match');
-        rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        findMatchIdx = i;
-        found = true;
-        showToast(`找到第 ${i+1} 行`);
-        break;
-      }
-    }
-    if (!found) {
+      if (content.includes(text)) allMatches.push(i);
+    });
+
+    if (allMatches.length === 0) {
       if (findMatchIdx >= 0) {
         findMatchIdx = -1;
         findClipboard();
         return;
       }
-      showToast('未找到匹配');
+      showToast('未找到匹配 (0 筆)');
+      return;
     }
+
+    let nextPos = 0;
+    if (findMatchIdx >= 0) {
+      const cur = allMatches.indexOf(findMatchIdx);
+      if (cur >= 0) nextPos = (cur + 1) % allMatches.length;
+    }
+    const targetIdx = allMatches[nextPos];
+    rows[targetIdx].classList.add('find-match');
+    rows[targetIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    findMatchIdx = targetIdx;
+    showToast(`找到第 ${targetIdx+1} 行 (共 ${allMatches.length} 筆)`);
   }).catch(() => showToast('無法讀取剪貼簿'));
 }
 
