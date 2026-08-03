@@ -1416,6 +1416,40 @@ function clearAll() {
 }
 
 // ============ Copy TC ============
+function pasteTC() {
+  if (currentIdx < 0) { showToast('沒有 Test Case'); return; }
+  if (isReadOnly) { showToast('唯讀模式不能貼上'); return; }
+  navigator.clipboard.readText().then((text) => {
+    if (!text) { showToast('剪貼簿內容為空'); return; }
+    const cells = parseCSVLine(text.trim());
+    let triplets = [];
+    if (cells.length === 0) { showToast('剪貼簿內容格式無效'); return; }
+    if (cells.length % 3 === 1) {
+      for (let i = 1; i + 2 < cells.length; i += 3) triplets.push([cells[i], cells[i+1], cells[i+2]]);
+    } else if (cells.length % 3 === 0) {
+      for (let i = 0; i + 2 < cells.length; i += 3) triplets.push([cells[i], cells[i+1], cells[i+2]]);
+    } else {
+      showToast('剪貼簿內容格式無效'); return;
+    }
+    const newSteps = triplets
+      .filter(t => t[0] !== '' || t[1] !== '' || t[2] !== '')
+      .map(t => ({ p1: t[0], p2: t[1], a: t[2] }));
+    if (newSteps.length === 0) { showToast('剪貼簿沒有有效步驟'); return; }
+    pushSnapshot('貼上 ' + newSteps.length + ' 個步驟');
+    if (selectedRowIdx >= 0) {
+      steps.splice(selectedRowIdx + 1, 0, ...newSteps);
+      selectedRowIdx = -1;
+    } else {
+      steps.push(...newSteps);
+    }
+    markDirty();
+    renderAll();
+    showToast('已貼上 ' + newSteps.length + ' 個步驟');
+  }).catch(() => {
+    showToast('無法讀取剪貼簿');
+  });
+}
+
 function copyTC() {
   if (currentIdx < 0) { showToast('沒有 Test Case'); return; }
   const tc = testCases[currentIdx];
