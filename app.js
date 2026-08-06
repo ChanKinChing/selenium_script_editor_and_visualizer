@@ -91,8 +91,24 @@ let fsMtime = 0;
 let fsWatchTimer = null;
 let fsAutoSyncTimer = null;
 let reloadResolve = null;
+let stepIdSeq = 0;
+let fsWriting = false;
+let lastWrittenContent = null;
 const FS_POLL_MS = 2500;
 const FS_AUTOSYNC_MS = 2000;
+function newStepId() { return 's' + (++stepIdSeq); }
+function maxStepIdSeq(tcArr) {
+  let max = 0;
+  for (const tc of tcArr || []) {
+    for (const s of tc.steps || []) {
+      if (s._id && /^s\d+$/.test(s._id)) {
+        const n = parseInt(s._id.slice(1), 10);
+        if (n > max) max = n;
+      }
+    }
+  }
+  return max;
+}
 function fsApiAvailable() {
   if (typeof window === 'undefined') return false;
   return !!(window.isSecureContext && typeof window.showOpenFilePicker === 'function');
@@ -130,17 +146,26 @@ function loadState() {
   if (!raw) return false;
   try {
     const data = JSON.parse(raw);
-    testCases = data.testCases.map(tc => ({
-      name: tc.name,
-      steps: tc.steps.map(s => ({...s})),
-      breakpoints: new Set(tc.breakpoints)
-    }));
+    testCases = data.testCases.map(tc => {
+      const isLegacyBp = [...(tc.breakpoints || [])].some(b => typeof b === 'number');
+      const stepsArr = tc.steps.map(s => ({...s}));
+      for (const s of stepsArr) if (!s._id) s._id = newStepId();
+      let bp = new Set(tc.breakpoints || []);
+      if (isLegacyBp) {
+        bp = new Set();
+        for (const b of tc.breakpoints) {
+          if (stepsArr[b] && stepsArr[b]._id) bp.add(stepsArr[b]._id);
+        }
+      }
+      return { name: tc.name, steps: stepsArr, breakpoints: bp };
+    });
     currentIdx = Math.min(data.currentIdx, testCases.length - 1);
     currentFileName = data.currentFileName || '';
     if (currentIdx >= 0) {
       steps = testCases[currentIdx].steps;
       breakpoints = testCases[currentIdx].breakpoints;
     }
+    stepIdSeq = maxStepIdSeq(testCases);
     return true;
   } catch { return false; }
 }
@@ -559,7 +584,7 @@ function applyCSVText(txt, fileName, fromHandle) {
     let stepNum = 0;
     for (let i = 1; i + 2 < fixed.length; i += 3) {
       stepNum++;
-      const s = { p1: fixed[i] || '', p2: fixed[i+1] || '', a: fixed[i+2] || '' };
+      const s = { p1: fixed[i] || '', p2: fixed[i+1] || '', a: fixed[i+2] || '', _id: newStepId() };
       const errs = validateCSVStep(s);
       if (errs.length) errors.push({ line: lineNum, step: stepNum, raw: [s.p1, s.p2, s.a].map(c => c.includes(',') ? '"'+c.replace(/"/g,'""')+'"' : c).join(','), msgs: errs });
       if (s.a !== '' && !ALL_ACTIONS.includes(s.a)) s._error = true;
@@ -659,6 +684,7 @@ async function importViaPicker(forceMode) {
   let mode = forceMode || stored || await showModeModal(file.name);
   const granted = mode === 'sync' ? await requestWritePermission(handle) : false;
   pushSnapshot('載入CSV');
+  lastWrittenContent = null;
   if (mode === 'sync' && granted) {
     importedFileHandle = handle;
     fsMtime = file.lastModified;
@@ -723,6 +749,7 @@ async function toggleSyncMode() {
 async function loadFromHandle(handle) {
   const file = await handle.getFile();
   fsMtime = file.lastModified;
+  lastWrittenContent = null;
   applyCSVText(await file.text(), file.name, true);
 }
 
@@ -741,16 +768,21 @@ function isModalOpen() {
     .some(id => document.getElementById(id) && !document.getElementById(id).classList.contains('hidden'));
 }
 async function checkFileChange() {
-  if (!importedFileHandle || isModalOpen()) return;
+  if (!importedFileHandle || isModalOpen() || fsWriting) return;
   try {
     const file = await importedFileHandle.getFile();
     if (file.lastModified === fsMtime) return;
+    const text = await file.text();
+    if (lastWrittenContent !== null && normalizeCSVForCompare(text) === lastWrittenContent) {
+      fsMtime = file.lastModified;
+      return;
+    }
     fsMtime = file.lastModified;
     if (isDirty) {
       const doReload = await confirmReloadModal(file.name);
       if (!doReload) return;
     }
-    applyCSVText(await file.text(), file.name, true);
+    applyCSVText(text, file.name, true);
     showToast('偵測到外部變更，已重新載入');
   } catch (e) {
     console.warn('checkFileChange failed', e);
@@ -758,6 +790,9 @@ async function checkFileChange() {
     importedFileHandle = null;
     idbClearHandle();
   }
+}
+function normalizeCSVForCompare(text) {
+  return String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[ \t]+$/gm, '').trim();
 }
 function confirmReloadModal(fileName) {
   return new Promise(resolve => {
@@ -854,7 +889,7 @@ function addStep(param2, actionOverride) {
     val = '';
   }
   pushSnapshot('新增步驟 ' + (action||'自訂'));
-  const newStep = { p1: '', p2: val, a: action };
+  const newStep = { p1: '', p2: val, a: action, _id: newStepId() };
   let idx;
   if (selectedRowIdx >= 0) {
     steps.splice(selectedRowIdx + 1, 0, newStep);
@@ -1073,12 +1108,12 @@ function renderAll() {
     const tdIdx = document.createElement('td');
     tdIdx.className = 'td-idx';
     const num = document.createElement('span');
-    num.className = 'num' + (breakpoints.has(i) ? ' bp' : '');
+    num.className = 'num' + (breakpoints.has(step._id) ? ' bp' : '');
     num.textContent = i + 1;
     num.title = '左鍵: 標記斷點 | 右鍵: 複製該行';
     num.onclick = () => {
       pushSnapshot('切換斷點');
-      if (breakpoints.has(i)) breakpoints.delete(i); else breakpoints.add(i);
+      if (breakpoints.has(step._id)) breakpoints.delete(step._id); else breakpoints.add(step._id);
       num.classList.toggle('bp');
     };
     num.oncontextmenu = (e) => {
@@ -1332,11 +1367,17 @@ async function autoSync() {
   try {
     const perm = await importedFileHandle.queryPermission({ mode: 'readwrite' });
     if (perm !== 'granted') return;
-    const writable = await importedFileHandle.createWritable();
-    await writable.write(buildCSVContent());
-    await writable.close();
-    const f = await importedFileHandle.getFile();
-    fsMtime = f.lastModified;
+    fsWriting = true;
+    try {
+      const writable = await importedFileHandle.createWritable();
+      await writable.write(buildCSVContent());
+      await writable.close();
+      const f = await importedFileHandle.getFile();
+      fsMtime = f.lastModified;
+    } finally {
+      fsWriting = false;
+    }
+    lastWrittenContent = normalizeCSVForCompare(buildCSVContent());
     isDirty = false;
     saveState();
   } catch (e) {
@@ -1347,6 +1388,7 @@ function syncToCSV() {
   const err = hasValidationErrors();
   if (err) { showToast(err); return; }
   const content = buildCSVContent();
+  const contentNorm = normalizeCSVForCompare(content);
   (async () => {
     try {
       let handle = importedFileHandle;
@@ -1357,11 +1399,17 @@ function syncToCSV() {
           if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
         } catch (e) { console.warn(e); }
         if (perm === 'granted') {
-          const writable = await handle.createWritable();
-          await writable.write(content);
-          await writable.close();
-          const f = await handle.getFile();
-          fsMtime = f.lastModified;
+          fsWriting = true;
+          try {
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            const f = await handle.getFile();
+            fsMtime = f.lastModified;
+          } finally {
+            fsWriting = false;
+          }
+          lastWrittenContent = contentNorm;
           isDirty = false; saveState();
           showToast('已同步至 ' + (handle.name || currentFileName + '.csv'));
           return;
@@ -1383,11 +1431,17 @@ function syncToCSV() {
       });
       importedFileHandle = handle;
       try { await idbSetHandle(handle); } catch (e) { console.warn(e); }
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      const f = await handle.getFile();
-      fsMtime = f.lastModified;
+      fsWriting = true;
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        const f = await handle.getFile();
+        fsMtime = f.lastModified;
+      } finally {
+        fsWriting = false;
+      }
+      lastWrittenContent = contentNorm;
       isDirty = false; saveState();
       showToast('已同步至 ' + (handle.name || currentFileName + '.csv'));
       startFileWatch();
@@ -1433,7 +1487,7 @@ function pasteTC() {
     }
     const newSteps = triplets
       .filter(t => t[0] !== '' || t[1] !== '' || t[2] !== '')
-      .map(t => ({ p1: t[0], p2: t[1], a: t[2] }));
+      .map(t => ({ p1: t[0], p2: t[1], a: t[2], _id: newStepId() }));
     if (newSteps.length === 0) { showToast('剪貼簿沒有有效步驟'); return; }
     pushSnapshot('貼上 ' + newSteps.length + ' 個步驟');
     if (selectedRowIdx >= 0) {
